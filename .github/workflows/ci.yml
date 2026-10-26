@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile || bun install
+
+      - name: Lint
+        run: bun run lint
+
+      - name: Core logic suite (75 assertions)
+        run: bun run scripts/verify-core.ts
+
+      - name: Build
+        run: bun run build
+
+      - name: Secret scan (repo content)
+        run: |
+          # Guard the guard: the repo itself must never ship credentials.
+          if grep -rEn "gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|hf_[A-Za-z0-9]{30,}|AKIA[0-9A-Z]{16}" --include="*.ts" --include="*.tsx" --include="*.js" --include="*.mjs" --include="*.json" --include="*.md" src scripts docs README.md; then
+            echo "::error::Potential credential found in tracked files"; exit 1
+          fi
+          echo "No credentials detected."

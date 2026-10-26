@@ -1,0 +1,208 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-amber-warm: var(--amber-warm);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+/* ————————————————————————————————————————————————————————————
+   PAPER2BENCH — BROWN & BLACK THEME
+   Light: warm paper white canvas, coffee-brown primary, black sidebar.
+   Dark:  deep brown-black canvas, caramel primary, true black sidebar.
+   Status colors always ship with text labels (never color-only meaning).
+   ———————————————————————————————————————————————————————————— */
+
+:root {
+  --radius: 0.625rem;
+  --background: #f7f2ea;
+  --foreground: #221a10;
+  --card: #fffdf9;
+  --card-foreground: #221a10;
+  --popover: #fffdf9;
+  --popover-foreground: #221a10;
+  --primary: #7a4a21;
+  --primary-foreground: #fdf8f0;
+  --secondary: #efe7da;
+  --secondary-foreground: #3c2f1e;
+  --muted: #f0e9dd;
+  --muted-foreground: #77664f;
+  --accent: #ecdfc9;
+  --accent-foreground: #5a4020;
+  --destructive: #b23b2e;
+  --border: #e3d8c4;
+  --input: #d8ccB6;
+  --ring: #7a4a21;
+  --amber-warm: #c98a3d;
+  --success: #3e7c4f;
+  --warning: #b98a44;
+  --chart-1: #8a5a2e;
+  --chart-2: #c98a3d;
+  --chart-3: #3e7c4f;
+  --chart-4: #7a6449;
+  --chart-5: #b23b2e;
+  --sidebar: #191207;
+  --sidebar-foreground: #f1e9da;
+  --sidebar-primary: #c08a52;
+  --sidebar-primary-foreground: #1c140b;
+  --sidebar-accent: #2a1f10;
+  --sidebar-accent-foreground: #f5edde;
+  --sidebar-border: #2c2113;
+  --sidebar-ring: #c08a52;
+}
+
+.dark {
+  --background: #0d0a06;
+  --foreground: #f2ebdd;
+  --card: #16110a;
+  --card-foreground: #f2ebdd;
+  --popover: #1a140c;
+  --popover-foreground: #f2ebdd;
+  --primary: #c08a52;
+  --primary-foreground: #20150a;
+  --secondary: #241c11;
+  --secondary-foreground: #ead9bd;
+  --muted: #221a0f;
+  --muted-foreground: #a8967c;
+  --accent: #2c2113;
+  --accent-foreground: #e9caa0;
+  --destructive: #e0564a;
+  --border: #2b2114;
+  --input: #3a2d1b;
+  --ring: #c08a52;
+  --amber-warm: #d9a45b;
+  --success: #6fbf85;
+  --warning: #d9a45b;
+  --chart-1: #c08a52;
+  --chart-2: #d9a45b;
+  --chart-3: #6fbf85;
+  --chart-4: #a08b6a;
+  --chart-5: #e0564a;
+  --sidebar: #080603;
+  --sidebar-foreground: #ece3d2;
+  --sidebar-primary: #d9a45b;
+  --sidebar-primary-foreground: #1c140b;
+  --sidebar-accent: #20180c;
+  --sidebar-accent-foreground: #f5edde;
+  --sidebar-border: #241b0e;
+  --sidebar-ring: #d9a45b;
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "cv02", "cv03", "cv04";
+  }
+  ::selection {
+    background: color-mix(in srgb, var(--primary) 25%, transparent);
+  }
+}
+
+/* Display serif for hero/headings — brown-black editorial character */
+.font-display {
+  font-family: Georgia, "Times New Roman", "Noto Serif", serif;
+  letter-spacing: -0.015em;
+}
+
+/* Slim warm scrollbars */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--muted-foreground) 45%, transparent) transparent;
+}
+*::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+*::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--muted-foreground) 40%, transparent);
+  border-radius: 8px;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--primary) 60%, transparent);
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* Subtle grain-free paper texture on the hero band */
+.hero-band {
+  background:
+    radial-gradient(1200px 400px at 15% -10%, color-mix(in srgb, var(--primary) 14%, transparent), transparent),
+    radial-gradient(900px 380px at 95% 0%, color-mix(in srgb, var(--amber-warm) 10%, transparent), transparent),
+    var(--card);
+}
+
+/* Focus visibility (WCAG 2.2) */
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* Code viewer */
+.code-pane {
+  font-family: var(--font-geist-mono), monospace;
+  font-size: 12.5px;
+  line-height: 1.55;
+  tab-size: 4;
+}
+
+@keyframes p2b-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
+}
+.animate-soft-pulse {
+  animation: p2b-pulse 1.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-soft-pulse {
+    animation: none;
+  }
+  * {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
+}

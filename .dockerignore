@@ -1,0 +1,11 @@
+node_modules
+.next
+.git
+dev.log
+server.log
+upload
+scripts/*.png
+scripts/test-paper.pdf
+*.zip
+db
+.zscripts

@@ -1,0 +1,22 @@
+cff-version: 1.2.0
+title: Paper2Bench — evidence-first reproduction workspace for ML papers
+message: >-
+  If you use Paper2Bench in your research workflow, please cite it.
+type: software
+authors:
+  - name: Paper2Bench Contributors
+version: 1.0.0
+date-released: "2026-10-26"
+license: MIT
+repository-code: "https://github.com/paper2bench/paper2bench"
+keywords:
+  - reproducibility
+  - machine learning
+  - evidence
+  - experiment scaffolds
+  - research engineering
+abstract: >-
+  Paper2Bench turns an ML paper into an evidence-backed, inspectable experiment:
+  claim-level extraction with source spans, honest unknown/conflict states,
+  deterministic PyTorch/HuggingFace scaffolds, run provenance, and
+  reported-vs-measured comparison under explicit protocol criteria.
