@@ -10,6 +10,7 @@ import { runValidation, scanSecrets } from "../src/lib/p2b/validation";
 import { compareAll, makeAssessment } from "../src/lib/p2b/comparison";
 import { computeEstimate } from "../src/lib/p2b/planner";
 import { normalizePaperInput, IngestError } from "../src/lib/p2b/ingest";
+import { readinessScore, workspaceCard, organizeCards, workspaceStats } from "../src/lib/p2b/insights";
 import type { Project } from "../src/lib/p2b/types";
 
 let pass = 0;
@@ -203,7 +204,8 @@ console.log(`\n======== FINAL: ${pass} passed, ${fail} failed ========`);
 // Round-3 addition: readiness insights + workspace organization
 console.log("\n== 11. Readiness insights (v2.0) ==");
 {
-  const { readinessScore, workspaceCard, organizeCards, workspaceStats } = await import("../src/lib/p2b/insights");
+  const { readinessScore: _rs, workspaceCard: _wc, organizeCards: _oc, workspaceStats: _ws } = { readinessScore, workspaceCard, organizeCards, workspaceStats };
+  void _rs; void _wc; void _oc; void _ws;
 
   const r0 = readinessScore(demo);
   check("score in 0..100", r0.total >= 0 && r0.total <= 100, String(r0.total));
