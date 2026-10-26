@@ -52,7 +52,8 @@ async function runScenario(name, initScript) {
     }
   });
 
-  await page.goto("http://localhost:3000/", { waitUntil: "networkidle", timeout: 60000 });
+  const target = process.argv[2] || "http://localhost:3000/";
+  await page.goto(target, { waitUntil: "networkidle", timeout: 60000 });
   await page.waitForTimeout(2500);
 
   const bodyAttrs = await page.evaluate(() => {
