@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { useP2B } from "@/lib/p2b/store";
 import { AppShell } from "@/components/p2b/AppShell";
 import { ImportView } from "@/components/p2b/ImportView";
 import { ProcessingView } from "@/components/p2b/ProcessingView";
+import { ProjectsView } from "@/components/p2b/ProjectsView";
 import { OverviewView } from "@/components/p2b/OverviewView";
 import { EvidenceView } from "@/components/p2b/EvidenceView";
 import { PlanView } from "@/components/p2b/PlanView";
@@ -22,16 +23,20 @@ import type { ViewId } from "@/lib/p2b/types";
  * Paper2Bench — single-surface application.
  * Route contract: everything renders at "/" (the workspace is a state machine, not a URL map).
  */
+const subscribeNoop = () => () => {};
+
 export default function Home() {
   const view = useP2B((s) => s.view);
   const activeId = useP2B((s) => s.activeProjectId);
+  const project = useP2B((s) => (s.activeProjectId ? s.projects[s.activeProjectId] : null));
   const processing = useP2B((s) => s.processing);
-  const [hydrated, setHydrated] = useState(false);
-
-  useEffect(() => {
-    // zustand/persist rehydration guard — avoids SSR/client mismatch
-    setHydrated(true);
-  }, []);
+  // Hydration guard without setState-in-effect: returns false on the server render
+  // and during the very first client render, then true for every subsequent one.
+  const hydrated = useSyncExternalStore(
+    subscribeNoop,
+    () => true,
+    () => false
+  );
 
   if (!hydrated) {
     return (
@@ -44,7 +49,25 @@ export default function Home() {
     );
   }
 
-  const project = activeId ? useP2B.getState().projects[activeId] : null;
+  // Library lives inside the workspace shell so navigation, ⌘K and
+  // shortcuts are always available — even with zero projects.
+  if (view === "projects") {
+    return (
+      <AppShell activeView="projects">
+        <ProjectsView />
+      </AppShell>
+    );
+  }
+
+  // Settings must stay reachable before any project exists — privacy
+  // decisions happen before ingestion, not after.
+  if (view === "settings" && !project) {
+    return (
+      <AppShell activeView="settings">
+        <SettingsView />
+      </AppShell>
+    );
+  }
 
   // Import landing has its own full-page chrome (no workspace shell)
   if (view === "import" || (!project && !processing)) {

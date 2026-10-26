@@ -1,6 +1,7 @@
 "use client";
 
 import { useP2B } from "@/lib/p2b/store";
+import { readinessScore } from "@/lib/p2b/insights";
 import { conflictCount, evidenceCoverage, isBlocker, reviewedCriticalCount, unresolvedCriticalCount } from "@/lib/p2b/semantics";
 import { StatusPill, SectionHeading } from "./bits";
 import { Button } from "@/components/ui/button";
@@ -29,6 +30,7 @@ export function OverviewView() {
   const blockers = unresolvedCriticalCount(project.claims);
   const conflicts = conflictCount(project.claims);
   const coverage = evidenceCoverage(project.claims);
+  const readiness = readinessScore(project);
 
   const cards: {
     id: ViewId;
@@ -150,6 +152,85 @@ export function OverviewView() {
             </div>
           </div>
         ))}
+      </div>
+
+      {/* Readiness score */}
+      <div className="rounded-xl border border-border bg-card p-5">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-4">
+            <div
+              className="flex h-16 w-16 items-center justify-center rounded-full"
+              style={{
+                background: `conic-gradient(${
+                  readiness.total >= 90
+                    ? "var(--success)"
+                    : readiness.total >= 45
+                      ? "var(--primary)"
+                      : readiness.total >= 20
+                        ? "var(--amber-warm)"
+                        : "var(--destructive)"
+                } ${readiness.total}%, color-mix(in srgb, var(--muted-foreground) 18%, transparent) 0)`,
+              }}
+              role="img"
+              aria-label={`Readiness score ${readiness.total} of 100`}
+            >
+              <div className="flex h-12 w-12 flex-col items-center justify-center rounded-full bg-card">
+                <span className="font-display text-lg font-bold leading-none">{readiness.total}</span>
+                <span className="text-[9px] uppercase tracking-wider text-muted-foreground">of 100</span>
+              </div>
+            </div>
+            <div>
+              <p className="text-[10.5px] font-semibold uppercase tracking-widest text-primary">
+                Reproduction readiness
+              </p>
+              <p className="font-display text-[15px] font-semibold">{readiness.verdict_label}</p>
+              <p className="mt-0.5 max-w-md text-[12px] text-muted-foreground">
+                Process completeness, not scientific success — computed from what is reviewed, planned,
+                built and verified. Every deduction is listed and auditable.
+              </p>
+            </div>
+          </div>
+          <div className="grid w-full gap-2 sm:grid-cols-4 sm:w-auto">
+            {readiness.subs.map((sub) => (
+              <div key={sub.id} className="min-w-[120px]">
+                <div className="flex items-center justify-between text-[11.5px]">
+                  <span className="font-medium">{sub.label}</span>
+                  <span className="font-mono text-muted-foreground">{sub.score}</span>
+                </div>
+                <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-muted">
+                  <div
+                    className="h-full rounded-full transition-all"
+                    style={{
+                      width: `${sub.score}%`,
+                      background:
+                        sub.score >= 70
+                          ? "var(--success)"
+                          : sub.score >= 40
+                            ? "var(--amber-warm)"
+                            : "var(--destructive)",
+                    }}
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {readiness.recommendations.length ? (
+          <ul className="mt-4 space-y-1.5 border-t border-border pt-3">
+            {readiness.recommendations.map((r, i) => (
+              <li key={i} className="flex items-center gap-2 text-[12.5px]">
+                <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[var(--amber-warm)]" aria-hidden />
+                <button
+                  onClick={() => setView(r.view)}
+                  className="text-left text-muted-foreground transition-colors hover:text-foreground hover:underline"
+                >
+                  {r.label}
+                </button>
+              </li>
+            ))}
+          </ul>
+        ) : null}
       </div>
 
       {/* Next action */}

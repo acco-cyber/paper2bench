@@ -17,11 +17,25 @@ Paper2Bench is an evidence-first research engineering workspace. Give it an arXi
 
 Paper2Bench answers these with a **claim ledger** (one atomic fact per claim, each with a source span), **honest status semantics**, a **deterministic scaffold generator**, and a **run-provenance-aware comparison** that never awards "reproduced" automatically.
 
+## What's new in v2.0
+
+| Feature | What you get |
+|---|---|
+| **Reproduction readiness score** | Deterministic, auditable 0–100 score with four sub-scores (Evidence / Plan / Build / Verify). Every deduction is listed with the exact reason and a one-click fix target — process completeness, never scientific success. |
+| **Command palette (⌘K / Ctrl+K)** | One surface for navigation, cross-project search, claim/task/run lookup and every power action. Keyboard-first. |
+| **Projects dashboard** | Local library of all projects with search, sort (recent / title / readiness), pin, archive, duplicate and delete-with-confirm. Workspace aggregates included. |
+| **Keyboard shortcuts** | `⌘K` palette, `?` reference dialog, `Alt+1…9` direct view jumps. Every view reachable without the mouse. |
+| **Project switcher** | Switch projects from the header with per-project readiness, or jump to the library. |
+| **Workspace backup & restore** | Single restore-compatible JSON of all projects + settings. Import is structurally validated — corrupt payloads are refused with an explanation, never silently merged. |
+| **Pre-project settings access** | Privacy decisions happen before ingestion — Settings is reachable with zero projects. |
+| **PWA manifest** | Installable as a standalone app. |
+
 ## Feature map
 
 | Area | What you get |
 |---|---|
 | **Ingestion** | arXiv URL / DOI / local PDF. Strict allow-list (arxiv.org, doi.org). Re-ingesting the same source detects identical vs changed content. No arbitrary URL fetching. |
+| **Workspace** | Multi-project library with readiness scores, archive/pin/duplicate, workspace aggregates, command palette, keyboard shortcuts, backup/restore. Local-first, no account. |
 | **Parsing** | Local, in-browser PDF text extraction (pdf.js) with page mapping, section/table/equation counts, image-only page detection, and a coverage report. |
 | **Claim extraction** | Deterministic heuristic extractor (works fully offline) plus optional LLM-assisted extraction (explicit opt-in). Absent fields stay `unspecified` — never fabricated. |
 | **Evidence ledger** | Filter/search/review every claim; every populated claim carries a source span with page/section. Bulk-accept is restricted to low-risk claims. |
@@ -152,10 +166,11 @@ See [SECURITY.md](SECURITY.md) to report vulnerabilities.
 ## Testing
 
 ```bash
-bun run scripts/verify-core.ts    # 75-assertion core-logic suite:
+bun run scripts/verify-core.ts    # 102-assertion core-logic suite:
                                   # ingestion policy, extraction patterns, run importers,
                                   # scaffold determinism, validation honesty, comparison rules,
-                                  # compute estimator, secret scan, conflict provenance
+                                  # compute estimator, secret scan, conflict provenance,
+                                  # readiness scoring, workspace organization, backup integrity
 bun run lint                      # ESLint (Next.js + TypeScript)
 ```
 

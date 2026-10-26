@@ -1,26 +1,42 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTheme } from "next-themes";
 import { useP2B } from "@/lib/p2b/store";
+import { readinessScore } from "@/lib/p2b/insights";
 import { unresolvedCriticalCount, conflictCount, reviewedCriticalCount } from "@/lib/p2b/semantics";
 import { Button } from "@/components/ui/button";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { CommandPalette } from "./CommandPalette";
+import { ShortcutsDialog } from "./ShortcutsDialog";
+import {
   BarChart3,
   BookOpenCheck,
   Boxes,
+  ChevronDown,
+  Command,
   Cpu,
   Database,
   FileDown,
   FileCheck2,
   FlaskConical,
   FolderTree,
+  Keyboard,
+  Layers,
   LayoutDashboard,
   ListChecks,
   Moon,
   Plus,
   ScrollText,
+  Search,
   Settings2,
   ShieldAlert,
   Sun,
@@ -29,6 +45,7 @@ import type { ViewId } from "@/lib/p2b/types";
 import { cn } from "@/lib/utils";
 
 const NAV: { id: ViewId; label: string; icon: React.ReactNode; group: string }[] = [
+  { id: "projects", label: "Projects", icon: <Layers className="h-4 w-4" />, group: "Library" },
   { id: "overview", label: "Overview", icon: <LayoutDashboard className="h-4 w-4" />, group: "Workspace" },
   { id: "evidence", label: "Evidence ledger", icon: <BookOpenCheck className="h-4 w-4" />, group: "Workspace" },
   { id: "plan", label: "Reproduction plan", icon: <ListChecks className="h-4 w-4" />, group: "Workspace" },
@@ -41,6 +58,8 @@ const NAV: { id: ViewId; label: string; icon: React.ReactNode; group: string }[]
   { id: "export", label: "Export & share", icon: <FileDown className="h-4 w-4" />, group: "Verify" },
   { id: "settings", label: "Settings & privacy", icon: <Settings2 className="h-4 w-4" />, group: "Verify" },
 ];
+
+const GROUPS = ["Library", "Workspace", "Build", "Verify"];
 
 function ThemeToggle() {
   const { setTheme, resolvedTheme } = useTheme();
@@ -67,6 +86,65 @@ function ThemeToggle() {
   );
 }
 
+function ProjectSwitcher() {
+  const activeId = useP2B((s) => s.activeProjectId);
+  const project = useP2B((s) => (s.activeProjectId ? s.projects[s.activeProjectId] : null));
+  const projects = useP2B((s) => s.projects);
+  const list = Object.values(projects).sort((a, b) => (b.updated_at ?? "").localeCompare(a.updated_at ?? ""));
+
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          className="flex max-w-[46vw] items-center gap-1.5 rounded-md px-2 py-1 text-left transition-colors hover:bg-accent"
+          aria-label="Switch project"
+        >
+          <span className="min-w-0">
+            <span className="block truncate text-[13.5px] font-semibold leading-tight">
+              {project ? project.paper.title : "Paper2Bench"}
+            </span>
+            <span className="block truncate text-[11px] text-muted-foreground">
+              {project
+                ? `${project.paper.source_kind.toUpperCase()} · hash ${project.paper.source_version.slice(0, 10)} · Local-only mode`
+                : "Evidence-first reproduction workspace"}
+            </span>
+          </span>
+          <ChevronDown className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" className="w-[340px]">
+        <DropdownMenuLabel className="text-[11px] uppercase tracking-widest text-muted-foreground">
+          Switch project
+        </DropdownMenuLabel>
+        {list.slice(0, 12).map((p) => {
+          const r = readinessScore(p);
+          return (
+            <DropdownMenuItem
+              key={p.id}
+              onClick={() => useP2B.setState({ activeProjectId: p.id, view: "overview" })}
+              className="gap-2"
+            >
+              <ScrollText className="h-4 w-4 shrink-0 text-primary" />
+              <span className="min-w-0 flex-1 truncate">{p.paper.title}</span>
+              {p.id === activeId ? (
+                <span className="rounded bg-primary/15 px-1.5 py-0.5 text-[10px] font-semibold text-primary">open</span>
+              ) : null}
+              <span className="font-mono text-[11px] text-muted-foreground">{r.total}</span>
+            </DropdownMenuItem>
+          );
+        })}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem onClick={() => useP2B.setState({ view: "projects" })}>
+          <Layers className="h-4 w-4" /> All projects
+        </DropdownMenuItem>
+        <DropdownMenuItem onClick={() => useP2B.setState({ view: "import" })}>
+          <Plus className="h-4 w-4" /> New paper…
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
+
 export function AppShell({
   children,
   activeView,
@@ -78,12 +156,40 @@ export function AppShell({
   const project = useP2B((s) => (s.activeProjectId ? s.projects[s.activeProjectId] : null));
   const setView = useP2B((s) => s.setView);
   const [navOpen, setNavOpen] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
 
   const crit = project ? reviewedCriticalCount(project.claims) : { reviewed: 0, total: 0 };
   const blockers = project ? unresolvedCriticalCount(project.claims) : 0;
   const conflicts = project ? conflictCount(project.claims) : 0;
+  const readiness = project ? readinessScore(project) : null;
+
+  // Global hotkeys: ⌘K palette, ? shortcuts
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      const target = e.target as HTMLElement | null;
+      const typing =
+        target &&
+        (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable);
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setPaletteOpen((v) => !v);
+        return;
+      }
+      if (!typing && e.key === "?") {
+        e.preventDefault();
+        setShortcutsOpen(true);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
 
   const badgeFor = (id: ViewId): string | null => {
+    if (id === "projects") {
+      const n = Object.keys(useP2B.getState().projects).length;
+      return n ? String(n) : null;
+    }
     if (!project) return null;
     if (id === "evidence") {
       const n = unresolvedCriticalCount(project.claims) + conflictCount(project.claims);
@@ -101,6 +207,9 @@ export function AppShell({
 
   return (
     <div className="flex min-h-screen w-full">
+      <CommandPalette open={paletteOpen} onOpenChange={setPaletteOpen} />
+      <ShortcutsDialog open={shortcutsOpen} onOpenChange={setShortcutsOpen} />
+
       {/* Sidebar — black in light mode, true black in dark */}
       <aside
         className={cn(
@@ -110,7 +219,7 @@ export function AppShell({
         aria-label="Primary navigation"
       >
         <button
-          onClick={() => go("import")}
+          onClick={() => go("projects")}
           className="flex items-center gap-2.5 border-b border-sidebar-border px-4 py-4 text-left"
         >
           <span className="flex h-8 w-8 items-center justify-center rounded-md bg-sidebar-primary text-sidebar-primary-foreground">
@@ -125,7 +234,7 @@ export function AppShell({
         </button>
 
         <nav className="flex-1 overflow-y-auto px-2 py-3" aria-label="Workspace views">
-          {["Workspace", "Build", "Verify"].map((group) => (
+          {GROUPS.map((group) => (
             <div key={group} className="mb-3">
               <p className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/40">
                 {group}
@@ -167,9 +276,18 @@ export function AppShell({
           >
             <Plus className="h-4 w-4" /> New paper
           </Button>
-          <p className="mt-2.5 flex items-center justify-center gap-1.5 text-[10.5px] text-sidebar-foreground/45">
-            <Boxes className="h-3 w-3" /> Local-first · no account required
-          </p>
+          <div className="mt-2.5 flex items-center justify-between text-[10.5px] text-sidebar-foreground/45">
+            <p className="flex items-center gap-1.5">
+              <Boxes className="h-3 w-3" /> Local-first
+            </p>
+            <button
+              onClick={() => setShortcutsOpen(true)}
+              className="flex items-center gap-1 rounded px-1.5 py-0.5 transition-colors hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+              aria-label="Keyboard shortcuts"
+            >
+              <Keyboard className="h-3 w-3" /> ⌘K
+            </button>
+          </div>
         </div>
       </aside>
 
@@ -184,7 +302,7 @@ export function AppShell({
       {/* Main column */}
       <div className="flex min-h-screen flex-1 flex-col">
         <header className="sticky top-0 z-20 border-b border-border bg-card/95 backdrop-blur supports-[backdrop-filter]:bg-card/85">
-          <div className="flex h-14 items-center gap-3 px-4 lg:px-6">
+          <div className="flex h-14 items-center gap-2 px-4 lg:px-6">
             <Button
               variant="outline"
               size="icon"
@@ -194,36 +312,65 @@ export function AppShell({
             >
               <LayoutDashboard className="h-4 w-4" />
             </Button>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-[13.5px] font-semibold leading-tight">
-                {project ? project.paper.title : "Paper2Bench"}
-              </p>
-              <p className="truncate text-[11px] text-muted-foreground">
-                {project
-                  ? `${project.paper.source_kind.toUpperCase()} · hash ${project.paper.source_version.slice(0, 10)} · Local-only mode`
-                  : "Evidence-first reproduction workspace"}
-              </p>
-            </div>
+            <ProjectSwitcher />
 
-            {project ? (
+            <div className="ml-auto flex items-center gap-2">
               <button
-                onClick={() => go("evidence")}
-                className="hidden items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5 text-[11.5px] text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground sm:flex"
-                title="Critical claims reviewed"
+                onClick={() => setPaletteOpen(true)}
+                className="flex items-center gap-2 rounded-md border border-border bg-background px-2.5 py-1.5 text-[12px] text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground"
+                aria-label="Open command palette"
               >
-                <ListChecks className="h-3.5 w-3.5 text-primary" />
-                <span>
-                  {crit.reviewed}/{crit.total} critical reviewed
-                </span>
-                {blockers + conflicts > 0 ? (
-                  <span className="flex items-center gap-1 rounded-full bg-destructive/12 px-1.5 py-0.5 text-[10.5px] font-semibold text-destructive">
-                    <ShieldAlert className="h-3 w-3" /> {blockers + conflicts}
-                  </span>
-                ) : null}
+                <Search className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Search…</span>
+                <kbd className="hidden items-center gap-0.5 rounded border border-border bg-muted px-1.5 py-0.5 font-mono text-[10px] sm:flex">
+                  <Command className="h-2.5 w-2.5" />K
+                </kbd>
               </button>
-            ) : null}
 
-            <ThemeToggle />
+              {project && readiness ? (
+                <>
+                  <button
+                    onClick={() => go("overview")}
+                    className="hidden items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5 text-[11.5px] text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground md:flex"
+                    title={`Readiness ${readiness.total}/100 — ${readiness.verdict_label}`}
+                  >
+                    <span
+                      className="inline-block h-2 w-2 rounded-full"
+                      style={{
+                        background:
+                          readiness.total >= 90
+                            ? "var(--success)"
+                            : readiness.total >= 45
+                              ? "var(--primary)"
+                              : readiness.total >= 20
+                                ? "var(--warning)"
+                                : "var(--destructive)",
+                      }}
+                      aria-hidden
+                    />
+                    <span className="font-mono font-semibold text-foreground">{readiness.total}</span>
+                    <span>readiness</span>
+                  </button>
+                  <button
+                    onClick={() => go("evidence")}
+                    className="hidden items-center gap-1.5 rounded-md border border-border bg-background px-2.5 py-1.5 text-[11.5px] text-muted-foreground transition-colors hover:border-primary/50 hover:text-foreground xl:flex"
+                    title="Critical claims reviewed"
+                  >
+                    <ListChecks className="h-3.5 w-3.5 text-primary" />
+                    <span>
+                      {crit.reviewed}/{crit.total} critical reviewed
+                    </span>
+                    {blockers + conflicts > 0 ? (
+                      <span className="flex items-center gap-1 rounded-full bg-destructive/12 px-1.5 py-0.5 text-[10.5px] font-semibold text-destructive">
+                        <ShieldAlert className="h-3 w-3" /> {blockers + conflicts}
+                      </span>
+                    ) : null}
+                  </button>
+                </>
+              ) : null}
+
+              <ThemeToggle />
+            </div>
           </div>
         </header>
 
@@ -232,9 +379,14 @@ export function AppShell({
         <footer className="mt-auto border-t border-border bg-card/60">
           <div className="mx-auto flex w-full max-w-[1440px] flex-wrap items-center justify-between gap-2 px-4 py-3 text-[11.5px] text-muted-foreground lg:px-8">
             <p>
-              Paper2Bench v1.0 — extraction can check evidence, not truth. Verify anchors before trusting values.
+              Paper2Bench v2.0 — extraction can check evidence, not truth. Verify anchors before trusting values.
             </p>
-            <p>Local-first · data stays in your browser · no code execution on server</p>
+            <p className="flex items-center gap-3">
+              <button onClick={() => setShortcutsOpen(true)} className="transition-colors hover:text-foreground">
+                Keyboard shortcuts <kbd className="rounded border border-border bg-muted px-1 font-mono">?</kbd>
+              </button>
+              <span>Local-first · data stays in your browser · no code execution on server</span>
+            </p>
           </div>
         </footer>
       </div>

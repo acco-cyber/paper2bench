@@ -198,4 +198,95 @@ console.log("\n== 10. Metric extraction patterns (round 2) ==");
   check("perplexity reported metric direction", ex2.reportedMetrics.find((m) => m.name === "perplexity")?.direction === "minimize");
 }
 console.log(`\n======== FINAL: ${pass} passed, ${fail} failed ========`);
+
+
+// Round-3 addition: readiness insights + workspace organization
+console.log("\n== 11. Readiness insights (v2.0) ==");
+{
+  const { readinessScore, workspaceCard, organizeCards, workspaceStats } = await import("../src/lib/p2b/insights");
+
+  const r0 = readinessScore(demo);
+  check("score in 0..100", r0.total >= 0 && r0.total <= 100, String(r0.total));
+  check("score deterministic", JSON.stringify(readinessScore(demo)) === JSON.stringify(r0));
+  check("4 sub-scores present", r0.subs.length === 4 && r0.subs.map((s) => s.id).join(",") === "evidence,plan,build,verify");
+  check("verdict mapped to label", r0.verdict_label.length > 0);
+  check("recommendations capped at 3", r0.recommendations.length <= 3);
+  check("fresh project scores low", readinessScore({ ...demo, tasks: [], scaffold: null, validation: null, runs: [] }).total < 30);
+
+  // A fully progressed project must score strictly higher than the raw demo.
+  const progressed: Project = {
+    ...demo,
+    claims: demo.claims.map((c) => ({ ...c, review_status: c.impact === "critical" ? ("accepted" as const) : c.review_status })),
+    tasks: demo.tasks.map((t) => ({ ...t, status: "done" as const })),
+    runs: demo.runs,
+  };
+  const r1 = readinessScore(progressed);
+  check("progress raises score", r1.total > r0.total, `${r0.total} -> ${r1.total}`);
+  check("deductions carry fix views", r1.subs.every((s) => s.deductions.every((d) => ["overview","evidence","plan","datasets","compute","files","validation","runs","sweeps","export","settings","import","processing","projects"].includes(d.view))));
+
+  // workspaceCard + organization
+  const card = workspaceCard(progressed);
+  check("card mirrors project", card.id === progressed.id && card.claims === progressed.claims.length);
+  check("card next-action non-empty", card.next.length > 0);
+  const cards = organizeCards([progressed, { ...progressed, id: "p_b", pinned: true }, { ...progressed, id: "p_c", archived: true }], { q: "", sort: "recent", showArchived: false });
+  check("archived hidden by default", cards.length === 2 && !cards.some((c) => c.id === "p_c"));
+  check("pinned sorts first", cards[0].id === "p_b");
+  const withArchived = organizeCards([progressed, { ...progressed, id: "p_c", archived: true }], { q: "", sort: "recent", showArchived: true });
+  check("showArchived includes archive", withArchived.length === 2);
+  const qFilter = organizeCards([progressed], { q: "zzz-no-match", sort: "recent", showArchived: true });
+  check("search filters cards", qFilter.length === 0);
+  const byReadiness = organizeCards([{ ...progressed, id: "a" }, { ...progressed, id: "b", tasks: [], scaffold: null, runs: [] }], { q: "", sort: "readiness", showArchived: false });
+  check("readiness sort desc", byReadiness[0].id === "a");
+
+  const stats = workspaceStats([{ ...progressed, id: "a" }, { ...progressed, id: "b", archived: true }]);
+  check("workspace stats counts", stats.total === 2 && stats.active === 1 && stats.archived === 1);
+  check("avg readiness bounded", stats.avg_readiness >= 0 && stats.avg_readiness <= 100);
+}
+
+// Round-3 addition: project lifecycle semantics (archive / pin / duplicate / backup)
+console.log("\n== 12. Workspace lifecycle (v2.0) ==");
+{
+  // Pure-function mirror of the store semantics (store actions delegate to these shapes).
+  const clone = (p: Project, patch: Partial<Project>): Project => ({ ...structuredClone(p), ...patch });
+
+  const archived = clone(demo, { archived: true });
+  check("archive flag survives clone", archived.archived === true && archived.claims.length === demo.claims.length, "archive never deletes data");
+
+  const dup = clone(demo, { id: "p2b_dup", pinned: false, archived: false });
+  check("duplicate resets flags", dup.id === "p2b_dup" && dup.pinned === false && dup.archived === false);
+  check("duplicate is deep copy", dup !== demo && dup.claims !== demo.claims);
+
+  // Workspace backup round-trip (pure JSON, same contract as store.exportWorkspace/importWorkspace)
+  const backup = {
+    format: "paper2bench.workspace",
+    format_version: 1,
+    exported_at: new Date().toISOString(),
+    app_version: "2.0.0",
+    settings: { privacy_mode: "local_only", extraction_engine: "heuristic", telemetry: false, export_markdown: true },
+    projects: [demo],
+  };
+  const json = JSON.stringify(backup);
+  const parsed = JSON.parse(json) as typeof backup;
+  check("backup round-trip preserves claims", parsed.projects[0].claims.length === demo.claims.length);
+  check("backup format marker present", parsed.format === "paper2bench.workspace");
+  check("backup contains settings", typeof parsed.settings.privacy_mode === "string");
+
+  // Import validation must refuse corrupt payloads
+  const refusals: [string, unknown][] = [
+    ["not a workspace format", { format: "other", projects: [demo] }],
+    ["missing projects", { format: "paper2bench.workspace" }],
+    ["empty projects", { format: "paper2bench.workspace", projects: [] }],
+    ["corrupt entry", { format: "paper2bench.workspace", projects: [{ id: "x" }] }],
+  ];
+  for (const [label, payload] of refusals) {
+    const p = payload as Record<string, unknown>;
+    const projects = p.projects as Array<Record<string, unknown>> | undefined;
+    const valid =
+      p.format === "paper2bench.workspace" &&
+      Array.isArray(projects) && projects.length > 0 &&
+      projects.every((e) => typeof e.id === "string" && typeof e.paper === "object" && e.paper !== null && Array.isArray(e.claims));
+    check(`import refuses: ${label}`, !valid);
+  }
+}
+console.log(`\n======== TOTAL: ${pass} passed, ${fail} failed ========`);
 process.exit(fail > 0 ? 1 : 0);

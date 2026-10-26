@@ -1,0 +1,17 @@
+{
+  "name": "Paper2Bench — paper to inspectable reproduction",
+  "short_name": "Paper2Bench",
+  "description": "Evidence-first research engineering workspace: turn an ML paper into an evidence-backed, reproducible experiment. Local-first.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0d0a06",
+  "theme_color": "#7a4a21",
+  "icons": [
+    {
+      "src": "/logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

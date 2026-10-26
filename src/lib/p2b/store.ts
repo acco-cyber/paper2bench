@@ -72,6 +72,11 @@ interface P2BStore {
   loadDemo: () => string;
   deleteProject: (id: string) => void;
   renameProject: (id: string, title: string) => void;
+  archiveProject: (id: string, archived: boolean) => void;
+  pinProject: (id: string, pinned: boolean) => void;
+  duplicateProject: (id: string) => string | null;
+  exportWorkspace: () => string; // JSON string of full workspace backup
+  importWorkspace: (json: string) => { ok: boolean; error?: string; imported: number };
 
   // claims
   editClaim: (
@@ -253,6 +258,107 @@ export const useP2B = create<P2BStore>()(
             },
           };
         }),
+
+      archiveProject: (id, archived) =>
+        set((s) => {
+          const p = s.projects[id];
+          if (!p) return s;
+          const nextActive = archived && s.activeProjectId === id ? null : s.activeProjectId;
+          return {
+            activeProjectId: nextActive,
+            view: archived && s.activeProjectId === id ? ("projects" as const) : s.view,
+            projects: {
+              ...s.projects,
+              [id]: log({ ...p, archived }, "project_archived", archived ? "Project archived — data retained, hidden from the active dashboard." : "Project restored from archive."),
+            },
+          };
+        }),
+
+      pinProject: (id, pinned) =>
+        set((s) => {
+          const p = s.projects[id];
+          if (!p) return s;
+          return {
+            projects: { ...s.projects, [id]: { ...p, pinned, updated_at: p.updated_at } },
+          };
+        }),
+
+      duplicateProject: (id) => {
+        const p = get().projects[id];
+        if (!p) return null;
+        const now = new Date().toISOString();
+        const copyId = `p2b_${shortHash(p.id + now, 10)}`;
+        const copy: Project = {
+          ...structuredClone(p),
+          id: copyId,
+          created_at: now,
+          updated_at: now,
+          archived: false,
+          pinned: false,
+          activity: [
+            { at: now, kind: "project_created" as const, detail: `Duplicated from project ${p.id} — full deep copy of claims, plan, scaffold metadata, runs and assessments.` },
+            ...p.activity,
+          ],
+        };
+        set((s) => ({
+          projects: { ...s.projects, [copyId]: copy },
+          activeProjectId: copyId,
+          view: "overview",
+        }));
+        return copyId;
+      },
+
+      exportWorkspace: () => {
+        const s = get();
+        const payload = {
+          format: "paper2bench.workspace",
+          format_version: 1,
+          exported_at: new Date().toISOString(),
+          app_version: "2.0.0",
+          settings: s.settings,
+          projects: Object.values(s.projects),
+        };
+        return JSON.stringify(payload, null, 2);
+      },
+
+      importWorkspace: (json) => {
+        let parsed: unknown;
+        try {
+          parsed = JSON.parse(json);
+        } catch {
+          return { ok: false, error: "File is not valid JSON.", imported: 0 };
+        }
+        const obj = parsed as Record<string, unknown> | null;
+        if (!obj || typeof obj !== "object") return { ok: false, error: "Unexpected file structure.", imported: 0 };
+        if (obj.format !== "paper2bench.workspace") {
+          return { ok: false, error: "Not a Paper2Bench workspace backup (missing format marker).", imported: 0 };
+        }
+        const projects = obj.projects;
+        if (!Array.isArray(projects) || projects.length === 0) {
+          return { ok: false, error: "Backup contains no projects.", imported: 0 };
+        }
+        // Structural validation per project — refuse silently-corrupting imports.
+        for (const raw of projects) {
+          const p = raw as Record<string, unknown>;
+          if (
+            typeof p?.id !== "string" ||
+            typeof p?.paper !== "object" || p.paper === null ||
+            !Array.isArray(p?.claims)
+          ) {
+            return { ok: false, error: "One or more entries are missing required fields (id / paper / claims). Import refused — nothing was changed.", imported: 0 };
+          }
+        }
+        const incoming = projects as unknown as Project[];
+        set((s) => {
+          const merged = { ...s.projects };
+          for (const p of incoming) merged[p.id] = { ...p, archived: p.archived === true, pinned: p.pinned === true };
+          return {
+            projects: merged,
+            settings: (obj.settings as Settings | undefined) ?? s.settings,
+          };
+        });
+        return { ok: true, imported: incoming.length };
+      },
 
       editClaim: (projectId, claimId, patch, reason) =>
         set((s) => {

@@ -284,7 +284,10 @@ export interface ActivityEvent {
     | "run_added"
     | "assessment_updated"
     | "export_created"
-    | "settings_changed";
+    | "settings_changed"
+    | "project_archived"
+    | "workspace_backup"
+    | "workspace_restore";
   detail: string;
 }
 
@@ -363,11 +366,14 @@ export interface Project {
   assessments: ReproductionAssessment[];
   activity: ActivityEvent[];
   provisional: boolean; // true when generated with unresolved critical items
+  archived?: boolean; // dashboard organization only — never affects data integrity
+  pinned?: boolean;
 }
 
 export type ViewId =
   | "import"
   | "processing"
+  | "projects"
   | "overview"
   | "evidence"
   | "plan"

@@ -71,3 +71,4 @@ Caddyfile
 /skills
 /download
 /tests
+scripts/corrupt-backup.json

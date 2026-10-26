@@ -27,6 +27,15 @@ export const metadata: Metadata = {
     "experiment scaffold",
   ],
   authors: [{ name: "Paper2Bench" }],
+  manifest: "/manifest.webmanifest",
+  applicationName: "Paper2Bench",
+  openGraph: {
+    title: "Paper2Bench",
+    description:
+      "Turn an ML paper into an evidence-backed, inspectable reproduction — claims linked to sources, honest unknowns, deterministic scaffolds, measured-vs-reported comparison.",
+    type: "website",
+    siteName: "Paper2Bench",
+  },
 };
 
 export const viewport: Viewport = {

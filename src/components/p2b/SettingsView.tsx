@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useP2B } from "@/lib/p2b/store";
 import type { ExtractionEngine, PrivacyMode } from "@/lib/p2b/types";
 import { SectionHeading } from "./bits";
@@ -10,9 +10,11 @@ import { Label } from "@/components/ui/label";
 import {
   AlertTriangle,
   CheckCircle2,
+  DatabaseBackup,
   Download,
   ShieldCheck,
   Trash2,
+  Upload,
   Wifi,
   WifiOff,
 } from "lucide-react";
@@ -29,8 +31,11 @@ interface HealthInfo {
 export function SettingsView() {
   const settings = useP2B((s) => s.settings);
   const updateSettings = useP2B((s) => s.updateSettings);
+  const exportWorkspace = useP2B((s) => s.exportWorkspace);
+  const importWorkspace = useP2B((s) => s.importWorkspace);
   const [health, setHealth] = useState<HealthInfo | null>(null);
   const [healthErr, setHealthErr] = useState<string | null>(null);
+  const backupRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetch("/api/health")
@@ -161,12 +166,64 @@ export function SettingsView() {
 
       {/* Data & retention */}
       <div className="rounded-xl border border-border bg-card p-5">
-        <p className="mb-1 text-[14px] font-semibold">Local data & retention</p>
+        <p className="mb-1 text-[14px] font-semibold">Local data, backup & retention</p>
         <p className="mb-3 text-[12.5px] text-muted-foreground">
-          Projects live in your browser&apos;s localStorage. Temporary PDF text lives only in memory during
-          processing. Deleting a project removes it locally — nothing was stored server-side.
+          Projects live in your browser&apos;s localStorage. The workspace backup is a single restore-compatible
+          JSON file (projects, plan, runs, activity and settings) — keep it anywhere you keep code. Temporary PDF
+          text lives only in memory during processing; nothing was ever stored server-side.
         </p>
         <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            onClick={() => {
+              const json = exportWorkspace();
+              const blob = new Blob([json], { type: "application/json" });
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement("a");
+              a.href = url;
+              a.download = `paper2bench_workspace_${new Date().toISOString().slice(0, 10)}.json`;
+              a.click();
+              URL.revokeObjectURL(url);
+              toast({
+                title: "Workspace backup downloaded",
+                description: "Full restore-compatible JSON — projects, settings, activity. No credentials are ever included.",
+              });
+            }}
+          >
+            <DatabaseBackup className="h-3.5 w-3.5" /> Download workspace backup
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            onClick={() => backupRef.current?.click()}
+          >
+            <Upload className="h-3.5 w-3.5" /> Restore from backup…
+          </Button>
+          <input
+            ref={backupRef}
+            type="file"
+            accept="application/json,.json"
+            className="sr-only"
+            aria-label="Restore workspace backup file"
+            onChange={async (e) => {
+              const f = e.target.files?.[0];
+              e.target.value = ""; // allow re-selecting the same file after a failure
+              if (!f) return;
+              const text = await f.text();
+              const res = importWorkspace(text);
+              if (res.ok) {
+                toast({
+                  title: `Restored ${res.imported} project${res.imported === 1 ? "" : "s"}`,
+                  description: "Backup merged into your workspace — existing projects were kept.",
+                });
+              } else {
+                toast({ title: "Restore refused", description: res.error, variant: "destructive" });
+              }
+            }}
+          />
           <Button
             variant="outline"
             size="sm"

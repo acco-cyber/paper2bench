@@ -14,6 +14,7 @@ import {
   FlaskConical,
   FolderTree,
   Info,
+  Layers,
   ListChecks,
   Loader2,
   Lock,
@@ -25,6 +26,7 @@ import {
 } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import type { ViewId } from "@/lib/p2b/types";
+import { workspaceCard } from "@/lib/p2b/insights";
 import { timeAgo } from "./format";
 
 const FEATURES = [
@@ -131,14 +133,24 @@ export function ImportView() {
               </p>
             </div>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-2 border-sidebar-border bg-sidebar-accent text-sidebar-accent-foreground hover:bg-sidebar-accent/70"
-            onClick={() => store.setView("settings")}
-          >
-            <Lock className="h-3.5 w-3.5" /> Local-only mode
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-2 border-sidebar-border bg-sidebar-accent text-sidebar-accent-foreground hover:bg-sidebar-accent/70"
+              onClick={() => (projects.length ? useP2B.setState({ view: "projects" }) : store.setView("settings"))}
+            >
+              {projects.length ? (
+                <>
+                  <Layers className="h-3.5 w-3.5" /> Workspace ({projects.length})
+                </>
+              ) : (
+                <>
+                  <Lock className="h-3.5 w-3.5" /> Local-only mode
+                </>
+              )}
+            </Button>
+          </div>
         </div>
       </header>
 
@@ -148,7 +160,7 @@ export function ImportView() {
           <div className="grid gap-10 lg:grid-cols-[1.1fr_1fr]">
             <div>
               <p className="mb-3 inline-flex items-center gap-2 rounded-full border border-primary/30 bg-primary/8 px-3 py-1 text-[11.5px] font-medium text-primary">
-                <Sparkles className="h-3.5 w-3.5" /> Evidence-first research engineering
+                <Sparkles className="h-3.5 w-3.5" /> Evidence-first research engineering · v2.0
               </p>
               <h1 className="font-display text-3xl font-bold leading-[1.15] tracking-tight lg:text-[40px]">
                 Turn an ML paper into an{" "}
@@ -324,36 +336,44 @@ export function ImportView() {
             />
           ) : (
             <ul className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {projects.map((p) => (
-                <li key={p.id}>
-                  <button
-                    onClick={() => openProject(p.id)}
-                    className="group w-full rounded-xl border border-border bg-card p-4 text-left transition-colors hover:border-primary/50"
-                  >
-                    <p className="line-clamp-2 text-[13.5px] font-semibold group-hover:text-primary">
-                      {p.paper.title}
-                    </p>
-                    <p className="mt-1 text-[11.5px] text-muted-foreground">
-                      {p.paper.source_kind.toUpperCase()} · {p.claims.length} claims · updated {timeAgo(p.updated_at)}
-                    </p>
-                    <div className="mt-2.5 flex flex-wrap gap-1.5">
-                      <span className="rounded-full bg-muted px-2 py-0.5 text-[10.5px] text-muted-foreground">
-                        {p.runs.length} runs
+              {projects.slice(0, 6).map((p) => {
+                const card = workspaceCard(p);
+                return (
+                  <li key={p.id}>
+                    <button
+                      onClick={() => openProject(p.id)}
+                      className="group flex w-full items-start gap-3 rounded-xl border border-border bg-card p-4 text-left transition-colors hover:border-primary/50"
+                    >
+                      <span
+                        className="mt-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full font-display text-[12px] font-bold"
+                        style={{
+                          background: `conic-gradient(${
+                            card.readiness.total >= 90
+                              ? "var(--success)"
+                              : card.readiness.total >= 45
+                                ? "var(--primary)"
+                                : card.readiness.total >= 20
+                                  ? "var(--amber-warm)"
+                                  : "var(--destructive)"
+                          } ${card.readiness.total}%, color-mix(in srgb, var(--muted-foreground) 18%, transparent) 0)`,
+                        }}
+                        aria-label={`Readiness ${card.readiness.total} of 100`}
+                      >
+                        <span className="flex h-7 w-7 items-center justify-center rounded-full bg-card">{card.readiness.total}</span>
                       </span>
-                      {p.scaffold ? (
-                        <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10.5px] text-primary">
-                          scaffold ready
+                      <span className="min-w-0 flex-1">
+                        <span className="line-clamp-2 block text-[13.5px] font-semibold leading-snug group-hover:text-primary">
+                          {p.paper.title}
                         </span>
-                      ) : null}
-                      {p.claims.some((c) => c.evidence_status === "conflicting") ? (
-                        <span className="rounded-full bg-destructive/10 px-2 py-0.5 text-[10.5px] text-destructive">
-                          conflicts
+                        <span className="mt-1 block text-[11.5px] text-muted-foreground">
+                          {p.paper.source_kind.toUpperCase()} · {p.claims.length} claims · {p.runs.length} runs · updated {timeAgo(p.updated_at)}
                         </span>
-                      ) : null}
-                    </div>
-                  </button>
-                </li>
-              ))}
+                        <span className="mt-2 block text-[11.5px] font-medium text-primary">Next: {card.next} →</span>
+                      </span>
+                    </button>
+                  </li>
+                );
+              })}
             </ul>
           )}
         </section>
