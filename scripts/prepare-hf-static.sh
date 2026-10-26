@@ -31,7 +31,7 @@ colorTo: yellow
 sdk: static
 pinned: true
 license: mit
-short_description: Turn an ML paper into an evidence-backed, inspectable experiment.
+short_description: Turn an ML paper into an evidence-backed experiment.
 ---
 
 # Paper2Bench — Hugging Face Space (static build)
