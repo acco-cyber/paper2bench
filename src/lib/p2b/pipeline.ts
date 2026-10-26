@@ -94,16 +94,72 @@ export interface MetadataResult {
 export async function fetchRemoteMetadata(
   normalized: ReturnType<typeof normalizePaperInput>
 ): Promise<MetadataResult> {
-  const res = await fetch("/api/ingest", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ kind: normalized.kind, identifier: normalized.identifier }),
-  });
-  if (!res.ok) {
-    const j = (await res.json().catch(() => ({}))) as { error?: string; hint?: string };
-    throw new IngestError(j.error ?? `Metadata lookup failed (HTTP ${res.status}).`, j.hint ?? "Try the PDF upload path instead.");
+  try {
+    const res = await fetch("/api/ingest", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ kind: normalized.kind, identifier: normalized.identifier }),
+    });
+    if (!res.ok) {
+      const j = (await res.json().catch(() => ({}))) as { error?: string; hint?: string };
+      throw new IngestError(j.error ?? `Metadata lookup failed (HTTP ${res.status}).`, j.hint ?? "Try the PDF upload path instead.");
+    }
+    return (await res.json()) as MetadataResult;
+  } catch (e) {
+    if (e instanceof IngestError) throw e;
+    // Server route unreachable (e.g. static hosting): fall back to a
+    // browser-direct Crossref lookup for DOIs — Crossref sends CORS headers.
+    if (normalized.kind === "doi") return crossrefDirect(normalized.identifier);
+    throw new IngestError(
+      "The metadata service is not reachable in this deployment.",
+      "Static deployments have no metadata proxy: use a DOI (direct Crossref lookup works), the guided example, or upload the PDF."
+    );
   }
-  return (await res.json()) as MetadataResult;
+}
+
+/** Browser-direct Crossref metadata (CORS-enabled) — used when /api/ingest is unavailable. */
+async function crossrefDirect(doiRaw: string): Promise<MetadataResult> {
+  const doi = doiRaw.replace(/^https?:\/\/(dx\.)?doi\.org\//, "").replace(/^doi\.org\//, "");
+  const ctrl = new AbortController();
+  const t = setTimeout(() => ctrl.abort(), 8000);
+  try {
+    const res = await fetch(`https://api.crossref.org/works/${encodeURIComponent(doi)}`, {
+      signal: ctrl.signal,
+      headers: { "User-Agent": "Paper2Bench/1.0 (local-first tool)" },
+    });
+    if (!res.ok) {
+      throw new IngestError(
+        res.status === 404 ? "DOI not found in Crossref." : `Crossref returned HTTP ${res.status}.`,
+        "Check the DOI string, or upload the PDF instead."
+      );
+    }
+    const json = (await res.json()) as {
+      message?: {
+        title?: string[];
+        author?: { given?: string; family?: string; name?: string }[];
+        "published-online"?: { "date-parts"?: number[][] };
+        "published-print"?: { "date-parts"?: number[][] };
+        "container-title"?: string[];
+        abstract?: string;
+      };
+    };
+    const m = json.message ?? {};
+    return {
+      title: m.title?.[0] ?? "",
+      authors: (m.author ?? []).map((a) => a.name ?? [a.given, a.family].filter(Boolean).join(" ")),
+      year: m["published-online"]?.["date-parts"]?.[0]?.[0] ?? m["published-print"]?.["date-parts"]?.[0]?.[0] ?? null,
+      abstract: m.abstract ?? null,
+      venue: m["container-title"]?.[0] ?? null,
+    };
+  } catch (e) {
+    if (e instanceof IngestError) throw e;
+    throw new IngestError(
+      e instanceof Error && e.name === "AbortError" ? "Crossref lookup timed out." : "Direct Crossref lookup failed.",
+      "Network may be unavailable — use 'Load guided example' or upload a PDF."
+    );
+  } finally {
+    clearTimeout(t);
+  }
 }
 
 /** LLM-assisted structured extraction (server-side SDK). Returns null on any failure. */
