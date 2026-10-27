@@ -1,0 +1,9 @@
+{
+  "paper_id": "1801.04381",
+  "title": "MobileNetV2: Inverted Residuals and Linear Bottlenecks",
+  "references": [
+    { "field_path": "training.learning_rate", "value": 0.045, "must_contain": ["learning rate of 0.0450.045"], "hint": "§4.1 (raw ar5iv duplicates '0.045')" },
+    { "field_path": "training.weight_decay", "value": 4e-5, "must_contain": ["weight decay is set to 0.000040.00004"], "hint": "§4.1 (duplicated)" },
+    { "field_path": "training.batch_size", "value": 96, "must_contain": ["batch size of 9696"], "hint": "§4.1 (duplicated)" }
+  ]
+}

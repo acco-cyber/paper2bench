@@ -1,12 +1,22 @@
 {
   "name": "nextjs_tailwind_shadcn_ts",
   "version": "0.2.1",
+  "bin": {
+    "paper2bench": "./cli/paper2bench.mjs"
+  },
   "private": true,
   "scripts": {
     "dev": "next dev -p 3000 2>&1 | tee dev.log",
     "build": "next build && cp -r .next/static .next/standalone/.next/ && cp -r public .next/standalone/",
     "start": "NODE_ENV=production bun .next/standalone/server.js 2>&1 | tee server.log",
     "lint": "eslint .",
+    "cli:build": "esbuild scripts/cli/paper2bench.ts --bundle --platform=node --format=esm --outfile=cli/paper2bench.mjs --banner:js='#!/usr/bin/env node'",
+    "cli": "npm run -s cli:build && node cli/paper2bench.mjs",
+    "test:core": "tsx scripts/verify-core.ts",
+    "bench:fetch": "python3 benchmark/fetch_corpus.py",
+    "bench:validate-corpus": "python3 benchmark/validate_corpus.py",
+    "bench:extraction": "tsx scripts/benchmark-extraction.ts",
+    "bench:scaffolds": "tsx scripts/validate-scaffolds.ts",
     "db:push": "prisma db push --accept-data-loss",
     "db:generate": "prisma generate",
     "db:migrate": "prisma migrate dev",

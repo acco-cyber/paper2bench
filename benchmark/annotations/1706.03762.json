@@ -1,0 +1,21 @@
+{
+  "paper_id": "1706.03762",
+  "title": "Attention Is All You Need",
+  "references": [
+    { "field_path": "architecture.num_layers", "value": 6, "must_contain": ["N=6"], "hint": "3.1" },
+    { "field_path": "architecture.d_model", "value": 512, "must_contain": ["dmodel=512"], "hint": "3.1" },
+    { "field_path": "architecture.d_ff", "value": 2048, "must_contain": ["2048"], "hint": "3.1" },
+    { "field_path": "architecture.num_heads", "value": 8, "must_contain": ["h=8"], "hint": "3.2.2" },
+    { "field_path": "optimizer.name", "value": "Adam", "must_contain": ["Adam optimizer"], "hint": "5.3" },
+    { "field_path": "optimizer.beta1", "value": 0.9, "must_contain": ["β1=0.9"], "hint": "5.3" },
+    { "field_path": "optimizer.epsilon", "value": 1e-9, "must_contain": ["10−9"], "hint": "5.3" },
+    { "field_path": "training.warmup_steps", "value": 4000, "must_contain": ["=4000"], "hint": "5.3" },
+    { "field_path": "loss.label_smoothing", "value": 0.1, "must_contain": ["smoothing of value"], "hint": "5.4" },
+    { "field_path": "evaluation.beam_size", "value": 4, "must_contain": ["beam size of 44"], "hint": "Table 3 note (raw ar5iv duplicates the digit)" },
+    { "field_path": "evaluation.length_penalty", "value": 0.6, "must_contain": ["length penalty α=0.6"], "hint": "7" },
+    { "field_path": "compute.accelerators", "value": 8, "must_contain": ["8 NVIDIA P100"], "hint": "5.1" },
+    { "field_path": "training.total_steps", "value_variants": [100000, 300000], "must_contain": ["300,000 steps"], "hint": "5.3 (base=100k, big=300k)" },
+    { "field_path": "dataset.size", "value": 4500000, "must_contain": ["4.5 million sentence pairs"], "hint": "5.1" },
+    { "field_path": "metrics.bleu", "value_variants": [28.4, 41.8, 41.0], "must_contain": ["28.4 BLEU", "BLEU score of 41.0"], "hint": "6.2 (EN-DE 28.4, EN-FR 41.8, 41.0 after 3.5 days)" }
+  ]
+}

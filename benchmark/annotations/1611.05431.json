@@ -1,0 +1,11 @@
+{
+  "paper_id": "1611.05431",
+  "title": "Aggregated Residual Transformations (ResNeXt)",
+  "references": [
+    { "field_path": "optimizer.name", "value": "SGD", "must_contain": ["We use SGD with a mini-batch size of 256"], "hint": "§2" },
+    { "field_path": "optimizer.momentum", "value": 0.9, "must_contain": ["momentum is 0.9"], "hint": "§2" },
+    { "field_path": "training.weight_decay", "value_variants": [0.0001, 0.0005], "must_contain": ["weight decay is 0.0001"], "hint": "§2 (ImageNet=1e-4, CIFAR=5e-4)" },
+    { "field_path": "training.learning_rate", "value": 0.1, "must_contain": ["learning rate of 0.1"], "hint": "§2" },
+    { "field_path": "training.batch_size", "value": 256, "must_contain": ["mini-batch size of 256"], "hint": "§2" }
+  ]
+}

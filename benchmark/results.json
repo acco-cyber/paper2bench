@@ -1,0 +1,680 @@
+{
+  "benchmark": "paper2bench-extraction-v1",
+  "generated_at": "2026-10-27T19:28:00.721Z",
+  "corpus_papers": 12,
+  "totals": {
+    "references": 67,
+    "correct": 67,
+    "wrong_value": 0,
+    "missing": 0,
+    "evidence_ok": 58,
+    "precision": 1,
+    "recall": 1,
+    "evidence_rate": 0.8657,
+    "raw_claims_extracted": 142
+  },
+  "per_paper": [
+    {
+      "paper_id": "1409.1556",
+      "title": "Very Deep Convolutional Networks (VGG)",
+      "refs": 4,
+      "correct": 4,
+      "wrong_value": 0,
+      "missing": 0,
+      "evidence_ok": 4,
+      "total_claims": 7
+    },
+    {
+      "paper_id": "1412.6980",
+      "title": "Adam: A Method for Stochastic Optimization",
+      "refs": 5,
+      "correct": 5,
+      "wrong_value": 0,
+      "missing": 0,
+      "evidence_ok": 4,
+      "total_claims": 10
+    },
+    {
+      "paper_id": "1511.06434",
+      "title": "Unsupervised Representation Learning with DCGANs",
+      "refs": 2,
+      "correct": 2,
+      "wrong_value": 0,
+      "missing": 0,
+      "evidence_ok": 2,
+      "total_claims": 7
+    },
+    {
+      "paper_id": "1512.03385",
+      "title": "Deep Residual Learning for Image Recognition",
+      "refs": 5,
+      "correct": 5,
+      "wrong_value": 0,
+      "missing": 0,
+      "evidence_ok": 3,
+      "total_claims": 12
+    },
+    {
+      "paper_id": "1605.07146",
+      "title": "Wide Residual Networks",
+      "refs": 6,
+      "correct": 6,
+      "wrong_value": 0,
+      "missing": 0,
+      "evidence_ok": 6,
+      "total_claims": 13
+    },
+    {
+      "paper_id": "1608.06993",
+      "title": "Densely Connected Convolutional Networks",
+      "refs": 5,
+      "correct": 5,
+      "wrong_value": 0,
+      "missing": 0,
+      "evidence_ok": 4,
+      "total_claims": 9
+    },
+    {
+      "paper_id": "1611.05431",
+      "title": "Aggregated Residual Transformations (ResNeXt)",
+      "refs": 5,
+      "correct": 5,
+      "wrong_value": 0,
+      "missing": 0,
+      "evidence_ok": 5,
+      "total_claims": 11
+    },
+    {
+      "paper_id": "1706.03762",
+      "title": "Attention Is All You Need",
+      "refs": 15,
+      "correct": 15,
+      "wrong_value": 0,
+      "missing": 0,
+      "evidence_ok": 13,
+      "total_claims": 20
+    },
+    {
+      "paper_id": "1801.04381",
+      "title": "MobileNetV2: Inverted Residuals and Linear Bottlenecks",
+      "refs": 3,
+      "correct": 3,
+      "wrong_value": 0,
+      "missing": 0,
+      "evidence_ok": 3,
+      "total_claims": 7
+    },
+    {
+      "paper_id": "1810.04805",
+      "title": "BERT: Pre-training of Deep Bidirectional Transformers",
+      "refs": 8,
+      "correct": 8,
+      "wrong_value": 0,
+      "missing": 0,
+      "evidence_ok": 6,
+      "total_claims": 19
+    },
+    {
+      "paper_id": "1905.11946",
+      "title": "EfficientNet: Rethinking Model Scaling",
+      "refs": 2,
+      "correct": 2,
+      "wrong_value": 0,
+      "missing": 0,
+      "evidence_ok": 2,
+      "total_claims": 10
+    },
+    {
+      "paper_id": "2010.11929",
+      "title": "An Image is Worth 16x16 Words (ViT)",
+      "refs": 7,
+      "correct": 7,
+      "wrong_value": 0,
+      "missing": 0,
+      "evidence_ok": 6,
+      "total_claims": 17
+    }
+  ],
+  "details": {
+    "1409.1556": [
+      {
+        "field_path": "training.batch_size",
+        "status": "correct",
+        "expected": 256,
+        "extracted": 256,
+        "evidence_ok": true
+      },
+      {
+        "field_path": "optimizer.momentum",
+        "status": "correct",
+        "expected": 0.9,
+        "extracted": 0.9,
+        "evidence_ok": true
+      },
+      {
+        "field_path": "training.dropout",
+        "status": "correct",
+        "expected": 0.5,
+        "extracted": 0.5,
+        "evidence_ok": true
+      },
+      {
+        "field_path": "training.learning_rate",
+        "status": "correct",
+        "expected": 0.01,
+        "extracted": 0.01,
+        "evidence_ok": true
+      }
+    ],
+    "1412.6980": [
+      {
+        "field_path": "training.learning_rate",
+        "status": "correct",
+        "expected": 0.001,
+        "extracted": 0.001,
+        "evidence_ok": true
+      },
+      {
+        "field_path": "optimizer.name",
+        "status": "correct",
+        "expected": "Adam",
+        "extracted": "Adam",
+        "evidence_ok": false
+      },
+      {
+        "field_path": "optimizer.beta1",
+        "status": "correct",
+        "expected": 0.9,
+        "extracted": 0.9,
+        "evidence_ok": true
+      },
+      {
+        "field_path": "optimizer.beta2",
+        "status": "correct",
+        "expected": 0.999,
+        "extracted": 0.999,
+        "evidence_ok": true
+      },
+      {
+        "field_path": "optimizer.epsilon",
+        "status": "correct",
+        "expected": 1e-8,
+        "extracted": 1e-8,
+        "evidence_ok": true
+      }
+    ],
+    "1511.06434": [
+      {
+        "field_path": "optimizer.name",
+        "status": "correct",
+        "expected": "Adam",
+        "extracted": "Adam",
+        "evidence_ok": true
+      },
+      {
+        "field_path": "training.learning_rate",
+        "status": "correct",
+        "expected": 0.0002,
+        "extracted": 0.0002,
+        "evidence_ok": true
+      }
+    ],
+    "1512.03385": [
+      {
+        "field_path": "optimizer.name",
+        "status": "correct",
+        "expected": "SGD",
+        "extracted": "SGD",
+        "evidence_ok": false
+      },
+      {
+        "field_path": "optimizer.momentum",
+        "status": "correct",
+        "expected": 0.9,
+        "extracted": 0.9,
+        "evidence_ok": true
+      },
+      {
+        "field_path": "training.weight_decay",
+        "status": "correct",
+        "expected": 0.0001,
+        "extracted": 0.0001,
+        "evidence_ok": true
+      },
+      {
+        "field_path": "training.learning_rate",
+        "status": "correct",
+        "expected": 0.1,
+        "extracted": 0.1,
+        "evidence_ok": false
+      },
+      {
+        "field_path": "training.batch_size",
+        "status": "correct",
+        "expected": 256,
+        "extracted": 256,
+        "evidence_ok": true
+      }
+    ],
+    "1605.07146": [
+      {
+        "field_path": "optimizer.name",
+        "status": "correct",
+        "expected": "SGD",
+        "extracted": "SGD",
+        "evidence_ok": true
+      },
+      {
+        "field_path": "optimizer.momentum",
+        "status": "correct",
+        "expected": 0.9,
+        "extracted": 0.9,
+        "evidence_ok": true
+      },
+      {
+        "field_path": "training.weight_decay",
+        "status": "correct",
+        "expected": 0.0005,
+        "extracted": 0.0005,
+        "evidence_ok": true
+      },
+      {
+        "field_path": "training.learning_rate",
+        "status": "correct",
+        "expected": 0.1,
+        "extracted": 0.1,
+        "evidence_ok": true
+      },
+      {
+        "field_path": "training.batch_size",
+        "status": "correct",
+        "expected": 128,
+        "extracted": 128,
+        "evidence_ok": true
+      },
+      {
+        "field_path": "training.dropout",
+        "status": "correct",
+        "expected": 0.3,
+        "extracted": 0.3,
+        "evidence_ok": true
+      }
+    ],
+    "1608.06993": [
+      {
+        "field_path": "optimizer.name",
+        "status": "correct",
+        "expected": "SGD",
+        "extracted": "SGD",
+        "evidence_ok": true
+      },
+      {
+        "field_path": "optimizer.momentum",
+        "status": "correct",
+        "expected": 0.9,
+        "extracted": 0.9,
+        "evidence_ok": true
+      },
+      {
+        "field_path": "training.weight_decay",
+        "status": "correct",
+        "expected": 0.0001,
+        "extracted": 0.0001,
+        "evidence_ok": true
+      },
+      {
+        "field_path": "training.learning_rate",
+        "status": "correct",
+        "expected": 0.1,
+        "extracted": 0.1,
+        "evidence_ok": true
+      },
+      {
+        "field_path": "training.batch_size",
+        "status": "correct",
+        "expected": [
+          64,
+          256
+        ],
+        "extracted": 64,
+        "evidence_ok": false
+      }
+    ],
+    "1611.05431": [
+      {
+        "field_path": "optimizer.name",
+        "status": "correct",
+        "expected": "SGD",
+        "extracted": "SGD",
+        "evidence_ok": true
+      },
+      {
+        "field_path": "optimizer.momentum",
+        "status": "correct",
+        "expected": 0.9,
+        "extracted": 0.9,
+        "evidence_ok": true
+      },
+      {
+        "field_path": "training.weight_decay",
+        "status": "correct",
+        "expected": [
+          0.0001,
+          0.0005
+        ],
+        "extracted": 0.0001,
+        "evidence_ok": true
+      },
+      {
+        "field_path": "training.learning_rate",
+        "status": "correct",
+        "expected": 0.1,
+        "extracted": 0.1,
+        "evidence_ok": true
+      },
+      {
+        "field_path": "training.batch_size",
+        "status": "correct",
+        "expected": 256,
+        "extracted": 256,
+        "evidence_ok": true
+      }
+    ],
+    "1706.03762": [
+      {
+        "field_path": "architecture.num_layers",
+        "status": "correct",
+        "expected": 6,
+        "extracted": 6,
+        "evidence_ok": true
+      },
+      {
+        "field_path": "architecture.d_model",
+        "status": "correct",
+        "expected": 512,
+        "extracted": 512,
+        "evidence_ok": true
+      },
+      {
+        "field_path": "architecture.d_ff",
+        "status": "correct",
+        "expected": 2048,
+        "extracted": 2048,
+        "evidence_ok": true
+      },
+      {
+        "field_path": "architecture.num_heads",
+        "status": "correct",
+        "expected": 8,
+        "extracted": 8,
+        "evidence_ok": false
+      },
+      {
+        "field_path": "optimizer.name",
+        "status": "correct",
+        "expected": "Adam",
+        "extracted": "Adam",
+        "evidence_ok": true
+      },
+      {
+        "field_path": "optimizer.beta1",
+        "status": "correct",
+        "expected": 0.9,
+        "extracted": 0.9,
+        "evidence_ok": true
+      },
+      {
+        "field_path": "optimizer.epsilon",
+        "status": "correct",
+        "expected": 1e-9,
+        "extracted": 1e-9,
+        "evidence_ok": true
+      },
+      {
+        "field_path": "training.warmup_steps",
+        "status": "correct",
+        "expected": 4000,
+        "extracted": 4000,
+        "evidence_ok": true
+      },
+      {
+        "field_path": "loss.label_smoothing",
+        "status": "correct",
+        "expected": 0.1,
+        "extracted": 0.1,
+        "evidence_ok": true
+      },
+      {
+        "field_path": "evaluation.beam_size",
+        "status": "correct",
+        "expected": 4,
+        "extracted": 4,
+        "evidence_ok": true
+      },
+      {
+        "field_path": "evaluation.length_penalty",
+        "status": "correct",
+        "expected": 0.6,
+        "extracted": 0.6,
+        "evidence_ok": true
+      },
+      {
+        "field_path": "compute.accelerators",
+        "status": "correct",
+        "expected": 8,
+        "extracted": "8x P100",
+        "evidence_ok": true
+      },
+      {
+        "field_path": "training.total_steps",
+        "status": "correct",
+        "expected": [
+          100000,
+          300000
+        ],
+        "extracted": 100000,
+        "evidence_ok": false
+      },
+      {
+        "field_path": "dataset.size",
+        "status": "correct",
+        "expected": 4500000,
+        "extracted": 4500000,
+        "evidence_ok": true
+      },
+      {
+        "field_path": "metrics.bleu",
+        "status": "correct",
+        "expected": [
+          28.4,
+          41.8,
+          41
+        ],
+        "extracted": 41,
+        "evidence_ok": true
+      }
+    ],
+    "1801.04381": [
+      {
+        "field_path": "training.learning_rate",
+        "status": "correct",
+        "expected": 0.045,
+        "extracted": 0.045,
+        "evidence_ok": true
+      },
+      {
+        "field_path": "training.weight_decay",
+        "status": "correct",
+        "expected": 0.00004,
+        "extracted": 0.00004,
+        "evidence_ok": true
+      },
+      {
+        "field_path": "training.batch_size",
+        "status": "correct",
+        "expected": 96,
+        "extracted": 96,
+        "evidence_ok": true
+      }
+    ],
+    "1810.04805": [
+      {
+        "field_path": "optimizer.name",
+        "status": "correct",
+        "expected": "Adam",
+        "extracted": "Adam",
+        "evidence_ok": true
+      },
+      {
+        "field_path": "training.learning_rate",
+        "status": "correct",
+        "expected": [
+          0.0001,
+          0.00005,
+          0.00003,
+          0.00002
+        ],
+        "extracted": 0.00005,
+        "evidence_ok": false
+      },
+      {
+        "field_path": "training.warmup_steps",
+        "status": "correct",
+        "expected": 10000,
+        "extracted": 10000,
+        "evidence_ok": true
+      },
+      {
+        "field_path": "training.batch_size",
+        "status": "correct",
+        "expected": [
+          256,
+          32
+        ],
+        "extracted": 32,
+        "evidence_ok": false
+      },
+      {
+        "field_path": "training.dropout",
+        "status": "correct",
+        "expected": 0.1,
+        "extracted": 0.1,
+        "evidence_ok": true
+      },
+      {
+        "field_path": "architecture.num_layers",
+        "status": "correct",
+        "expected": [
+          12,
+          24
+        ],
+        "extracted": 12,
+        "evidence_ok": true
+      },
+      {
+        "field_path": "architecture.d_model",
+        "status": "correct",
+        "expected": [
+          768,
+          1024
+        ],
+        "extracted": 768,
+        "evidence_ok": true
+      },
+      {
+        "field_path": "architecture.num_heads",
+        "status": "correct",
+        "expected": [
+          12,
+          16
+        ],
+        "extracted": 12,
+        "evidence_ok": true
+      }
+    ],
+    "1905.11946": [
+      {
+        "field_path": "training.learning_rate",
+        "status": "correct",
+        "expected": 0.256,
+        "extracted": 0.256,
+        "evidence_ok": true
+      },
+      {
+        "field_path": "training.weight_decay",
+        "status": "correct",
+        "expected": 0.00001,
+        "extracted": 0.00001,
+        "evidence_ok": true
+      }
+    ],
+    "2010.11929": [
+      {
+        "field_path": "optimizer.name",
+        "status": "correct",
+        "expected": "Adam",
+        "extracted": "Adam",
+        "evidence_ok": true
+      },
+      {
+        "field_path": "training.batch_size",
+        "status": "correct",
+        "expected": 4096,
+        "extracted": 4096,
+        "evidence_ok": true
+      },
+      {
+        "field_path": "training.weight_decay",
+        "status": "correct",
+        "expected": 0.1,
+        "extracted": 0.1,
+        "evidence_ok": true
+      },
+      {
+        "field_path": "architecture.num_layers",
+        "status": "correct",
+        "expected": [
+          12,
+          24,
+          32,
+          8
+        ],
+        "extracted": 8,
+        "evidence_ok": true
+      },
+      {
+        "field_path": "architecture.d_model",
+        "status": "correct",
+        "expected": [
+          768,
+          1024,
+          1280
+        ],
+        "extracted": 1024,
+        "evidence_ok": true
+      },
+      {
+        "field_path": "architecture.d_ff",
+        "status": "correct",
+        "expected": [
+          3072,
+          4096,
+          5120,
+          2048
+        ],
+        "extracted": 2048,
+        "evidence_ok": true
+      },
+      {
+        "field_path": "architecture.num_heads",
+        "status": "correct",
+        "expected": [
+          12,
+          16
+        ],
+        "extracted": 16,
+        "evidence_ok": false
+      }
+    ]
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "paper_id": "1511.06434",
+  "title": "Unsupervised Representation Learning with DCGANs",
+  "references": [
+    { "field_path": "optimizer.name", "value": "Adam", "must_contain": ["Adam optimizer"], "hint": "§4" },
+    { "field_path": "training.learning_rate", "value": 0.0002, "must_contain": ["using 0.0002 instead"], "hint": "§4 — sentence says 'suggested learning rate of 0.001 ... too high, using 0.0002 instead'; the heuristic grabs the first number (known failure mode)" }
+  ]
+}

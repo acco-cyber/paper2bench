@@ -49,7 +49,11 @@ function sentencesOf(text: string): { s: string; page: number }[] {
   const pages = text.split(/\f|\u000c/);
   const out: { s: string; page: number }[] = [];
   pages.forEach((pageText, pi) => {
-    const normalized = pageText.replace(/\s+/g, " ");
+    const normalized = pageText
+      // arXiv HTML (ar5iv) embeds zero-width characters inside identifiers and
+      // formulas ("w\u200ba\u200br\u200bm..."), which silently breaks patterns.
+      .replace(/[\u200B\u200C\u200D\uFEFF]/g, "")
+      .replace(/\s+/g, " ");
     const parts = normalized.split(/(?<=[.!?])\s+(?=[A-Z(])/g);
     for (const s of parts) {
       const t = s.trim();
@@ -63,6 +67,52 @@ function num(raw: string): number {
   return Number(raw.replace(/,/g, ""));
 }
 
+/**
+ * Collapse LaTeX-duplication artifacts in numeric captures.
+ * arXiv HTML often renders formula + source glued together, so numbers can
+ * arrive doubled: "0.90.9" (0.9), "256256" (256), "0.0450.045" (0.045).
+ * Only exact repeated halves of length >= 2 collapse, so legitimate values
+ * like 44 or 101 are never mangled.
+ */
+function dedupNum(raw: string): string {
+  const s = raw.trim().replace(/\.+$/, ""); // captures can swallow a sentence period
+  if (s.length >= 4 && s.length % 2 === 0) {
+    const half = s.slice(0, s.length / 2);
+    if (half === s.slice(s.length / 2)) return half;
+  }
+  return s;
+}
+
+/** ar5iv duplicates one digit ("8 8" -> "88", "4 4" -> "44"); collapse exactly that. */
+function collapseDup2(raw: string): string {
+  return raw.length === 2 && raw[0] === raw[1] ? raw[0] : raw;
+}
+
+/** Thousands vs list commas: "256,000" -> 256000; "16, 32" -> 16 (list). */
+function toValue(raw: string): number {
+  if (!/\d/.test(raw)) return NaN; // a lone "." is not a value
+  const thousands = raw.replace(/,(\d{3})(?!\d)/g, "$1");
+  const firstOfList = thousands.split(/,\s*/)[0];
+  return Number(dedupNum(firstOfList));
+}
+
+/**
+ * Scientific notation in paper-typical shapes: "10−4", "10^{-4}", "5⋅10−4",
+ * "2 x 10^{-4}", "1e-4". Returns null when the fragment is not scientific.
+ */
+function parseSciLoose(text: string): number | null {
+  // Strip the LaTeX-duplication tail first: "10−410^{-4}" states 10^-4 once,
+  // then repeats it in TeX form; a greedy exponent read would yield 10^-410.
+  const cleaned = text.replace(/(\d)\d*(\^\{?-?\d+\}?).*/, "$1");
+  const m = cleaned.match(/([\d.]+)?\s*(?:[⋅·x×*]\s*)?10\s*[−^]\s*\{?(\d+)\}?/);
+  if (m) {
+    const coef = m[1] !== undefined ? Number(m[1]) : 1;
+    return coef * Math.pow(10, -Number(m[2]));
+  }
+  const e = text.match(/\b([\d.]+)[eE](\d+)\b/);
+  return e ? Number(`${e[1]}e${e[2]}`) : null;
+}
+
 export function extractClaimsHeuristic(
   text: string,
   paperId: string
@@ -70,60 +120,101 @@ export function extractClaimsHeuristic(
   const hits: RawHit[] = [];
   const sents = sentencesOf(text);
   const push = (h: RawHit) => {
+    if (typeof h.value === "number" && !Number.isFinite(h.value)) return; // never emit NaN
     if (!hits.some((x) => x.path === h.path)) hits.push(h);
   };
 
-  for (const { s: sentence, page } of sents) {
-    // Optimizer
-    const adam = sentence.match(
-      /\bAdam(?:W)?\s+optimizer?\b.*?β\s*1?\s*=\s*([\d.]+).*?β\s*2?\s*=\s*([\d.]+)(?:.*?ε\s*=\s*([\d.e\-−]+))?/i
-    );
-    if (adam) {
-      push({
-        path: "optimizer.name",
-        category: "optimizer",
-        label: "Optimizer",
-        value: /AdamW/i.test(adam[0]) ? "AdamW" : "Adam",
-        unit: null,
-        impact: "critical",
-        sentence,
-        page,
-      });
-      push({
-        path: "optimizer.beta1",
-        category: "optimizer",
-        label: "Adam beta1",
-        value: Number(adam[1]),
-        unit: null,
-        impact: "important",
-        sentence,
-        page,
-      });
-      push({
-        path: "optimizer.beta2",
-        category: "optimizer",
-        label: "Adam beta2",
-        value: Number(adam[2]),
-        unit: null,
-        impact: "important",
-        sentence,
-        page,
-      });
-      if (adam[3]) {
+  // Self-referential setup phrasing marks the authors' own batch-size choice.
+  const BATCH_SELF_RE =
+    /we\s+(?:use|used|train|trained|set|take|employ)|our\s+(?:experiments?|models?|setup)|in\s+all\s+(?:of\s+)?our|mini-?batch/i;
+  const batchCandidates: Array<{
+    value: number;
+    tokenBased: boolean;
+    self: boolean;
+    sentence: string;
+    page: number;
+  }> = [];
+
+  // ---- Optimizer: document-level detection (pass 1) ---------------------
+  // Papers name the optimizer and its hyperparameters in a setup sentence that
+  // does not always contain the phrase "Adam optimizer", and SGD-mentioning
+  // sentences elsewhere must not override the actual optimizer.
+  const strongAdam = sents.some((p) =>
+    /\bAdam(?:W)?\s+(?:optimizer|optimi[sz]er)\b|\b(?:use|used|using|with|employ(?:ed)?)\s+AdamW?\b/i.test(p.s)
+  );
+  const anyAdam = sents.some((p) => /\bAdamW?\b/.test(p.s));
+  const betaSent = sents.find((p) => /β\s*_?\s*1\s*[:=]/.test(p.s) && /β\s*_?\s*2\s*[:=]/.test(p.s));
+  const sgdSetup = sents.some((p) =>
+    /\buse\s+SGD\b|\bSGD\s+with\b|\boptimi[sz]ed\s+using\s+SGD\b|\btrain(?:ed)?\s+with\s+SGD\b/i.test(p.s)
+  );
+  const useAdam = strongAdam || (anyAdam && !!betaSent && !sgdSetup);
+  if (useAdam) {
+    const isAdamW = sents.some((p) => /\bAdamW\b/.test(p.s));
+    const src =
+      betaSent ??
+      sents.find((p) => /\bAdamW?\b/.test(p.s) && /β\s*_?\s*2\s*[:=]/.test(p.s)) ??
+      sents.find((p) => /\bAdamW?\b/.test(p.s));
+    push({
+      path: "optimizer.name",
+      category: "optimizer",
+      label: "Optimizer",
+      value: isAdamW ? "AdamW" : "Adam",
+      unit: null,
+      impact: "critical",
+      sentence: src ? src.s : "",
+      page: src ? src.page : 1,
+    });
+    const b1 = src ? src.s.match(/β\s*_?\s*1\s*[:=]\s*([\d.]+)/i) : null;
+    if (b1) {
+      const v = Number(dedupNum(b1[1]));
+      if (Number.isFinite(v) && v > 0 && v < 1)
+        push({
+          path: "optimizer.beta1",
+          category: "optimizer",
+          label: "Adam beta1",
+          value: v,
+          unit: null,
+          impact: "important",
+          sentence: src!.s,
+          page: src!.page,
+        });
+    }
+    const b2 = src ? src.s.match(/β\s*_?\s*2\s*[:=]\s*([\d.]+)/i) : null;
+    if (b2) {
+      const v = Number(dedupNum(b2[1]));
+      if (Number.isFinite(v) && v > 0 && v < 1)
+        push({
+          path: "optimizer.beta2",
+          category: "optimizer",
+          label: "Adam beta2",
+          value: v,
+          unit: null,
+          impact: "important",
+          sentence: src!.s,
+          page: src!.page,
+        });
+    }
+    const eps = src ? src.s.match(/[εϵ]\s*[:=]\s*([^\s,;]{1,28})/i) : null;
+    if (eps) {
+      const v = parseSciLoose(eps[1]);
+      if (v !== null && Number.isFinite(v))
         push({
           path: "optimizer.epsilon",
           category: "optimizer",
           label: "Adam epsilon",
-          value: Number(adam[3].replace("−", "-")),
+          value: v,
           unit: null,
           impact: "informational",
-          sentence,
-          page,
+          sentence: src!.s,
+          page: src!.page,
         });
-      }
     }
+  }
+
+  for (const { s: sentence, page } of sents) {
+    // Optimizer: SGD fallback only when no Adam was detected document-wide.
     const sgd = sentence.match(/\bSGD\b|\bstochastic gradient descent\b/i);
-    if (sgd && !hits.some((h) => h.path === "optimizer.name")) {
+    if (sgd && !useAdam && !hits.some((h) => h.path === "optimizer.name")) {
       push({
         path: "optimizer.name",
         category: "optimizer",
@@ -134,31 +225,36 @@ export function extractClaimsHeuristic(
         sentence,
         page,
       });
-      const mom = sentence.match(/momentum(?:\s+of|\s*=)?\s*([\d.]+)/i);
-      if (mom)
-        push({
-          path: "optimizer.momentum",
-          category: "optimizer",
-          label: "Momentum",
-          value: Number(mom[1]),
-          unit: null,
-          impact: "important",
-          sentence,
-          page,
-        });
     }
 
-    // Learning rate — handles "learning rate of X", "was set to X", "= X", ": X"
-    const lr = sentence.match(
-      /learning\s+rate\s+(?:(?:is|was|set|fixed|of|to|at)\s+)*[:=]?\s*([\d.]+\s*(?:x|×)?\s*10\s*[-−^]\s*−?\d+|[\d.]+e\s*-?\d+|\d*\.?\d+)/i
+    // Learning rate — "learning rate of X", "was initially set to X", "α = X (stepsize)",
+    // scientific notation ("10−2"), and the "suggested X ... too high, using Y" correction.
+    // Sci exponents are single-digit: ML papers use 10−2..10−9 here, and ar5iv's
+    // duplicated "10−210^{-2}" would otherwise read as exponent 210.
+    let lr = sentence.match(
+      /learning\s+rate\s+(?:(?:is|was|are|set|fixed|of|to|at|initially|initial)\s+)*[:=]?\s*((?:[\d.]+\s*[⋅·x×]\s*)?10\s*[−^]\s*\{?\d\}?|[\d.]+e\s*-?\d+|\d*\.?\d+)/i
     );
+    if (!lr) {
+      // Adam-style defaults: "stepsize α = 0.001" or "α = 0.001" beside "β1 = 0.x".
+      // The β1=0.x adjacency is what distinguishes an optimizer-defaults sentence
+      // from unrelated uses of α (EfficientNet's compound-scaling α=1.2, a length
+      // penalty α=0.6, or a STEP-2 section heading).
+      if (/step\s*size|β\s*_?\s*1\s*[:=]\s*0/i.test(sentence)) {
+        lr = sentence.match(/\b(?:stepsize|step\s+size|α|alpha)\s*(?:is|=|of|:)?\s*([\d.]+)/i);
+      }
+    }
     if (lr) {
-      let v: number | null = null;
-      const sci = lr[1].match(/([\d.]+)\s*(?:x|×)?\s*10\s*[-−^]\s*(\d+)/i);
-      if (sci) v = Number(sci[1]) * Math.pow(10, -Number(sci[2]));
-      else if (/e/i.test(lr[1])) v = Number(lr[1]);
-      else v = Number(lr[1]);
-      if (v !== null && !Number.isNaN(v)) {
+      let v: number | null = parseSciLoose(lr[1]);
+      if (v === null) v = toValue(lr[1]);
+      // "suggested learning rate of 0.001 ... too high, using 0.0002 instead" — the paper's
+      // chosen value is the second one; the naive first-number read would be wrong.
+      const lrOverride = sentence.match(
+        /learning\s+rate\s+of\s+([\d.]+)[^.]{0,60}?(?:too\s+(?:high|low)|too\s+aggressive)[^.]{0,60}?using\s+([\d.]+)/i
+      );
+      if (lrOverride && Number(dedupNum(lrOverride[2])) !== Number(dedupNum(lrOverride[1]))) {
+        v = Number(dedupNum(lrOverride[2]));
+      }
+      if (v !== null && Number.isFinite(v) && v > 0 && v < 100) {
         push({
           path: "training.learning_rate",
           category: "training",
@@ -173,16 +269,16 @@ export function extractClaimsHeuristic(
       }
     }
 
-    // Warmup — both "warmup_steps = 4000" and "4000 warmup steps" shapes
+    // Warmup — "warmup_steps = 4000", "4000 warmup steps" and "over the first 10,000 steps"
     const warm =
-      sentence.match(/warm[_ ]?(?:up|-up)\s*_?(?:steps?|iterations?)?\s*(?:of|=|:|for)?\s*(?:the\s+first\s+)?([\d,]+)/i) ??
+      sentence.match(/warm[_ ]?(?:up|-up)\s*_?(?:steps?|iterations?)?\s*(?:of|for|over|=|:)?\s*(?:the\s+first\s+)?([\d,]+)/i) ??
       sentence.match(/([\d,]+)\s+warm[_ ]?(?:up|-up)\s*(?:steps?|iterations?)?/i);
     if (warm) {
       push({
         path: "training.warmup_steps",
         category: "training",
         label: "LR warmup steps",
-        value: num(warm[1]),
+        value: toValue(warm[1]),
         unit: "steps",
         impact: "important",
         sentence,
@@ -190,20 +286,20 @@ export function extractClaimsHeuristic(
       });
     }
 
-    // Batch size
-    const batch = sentence.match(
-      /batch\s+size\s+(?:of|=|:)?\s*([\d,]+)|([\d,]+)\s*(?:sentences?|tokens?|examples?)\s+(?:per|each)\s+(?:batch|GPU)/i
-    );
-    if (batch) {
-      const rawVal = batch[1] ?? batch[2];
-      const tokenBased = /tokens?/i.test(batch[0]) || /sentences?/i.test(batch[0]);
-      push({
-        path: "training.batch_size",
-        category: "training",
-        label: tokenBased ? "Batch size (tokens)" : "Batch size",
-        value: num(rawVal),
-        unit: tokenBased ? "tokens" : "examples",
-        impact: "critical",
+    // Batch size: candidates are collected document-level (pass 2, after the
+    // loop) so comparison-to-prior-work mentions don't win over setup sentences.
+    const batchRe =
+      /batch\s+size\s*(?:(?:of|is|was|are|set|to|at)\b|[:=]|\s)*\s*([\d,]+)|([\d,]+)\s*(?:sentences?|tokens?|examples?)\s+(?:per|each)\s+(?:batch|GPU)/gi;
+    for (const bm of sentence.matchAll(batchRe)) {
+      const rawVal = bm[1] ?? bm[2];
+      const tokenBased = /tokens?|sentences?/i.test(bm[0]);
+      const markerIdx = sentence.search(BATCH_SELF_RE);
+      batchCandidates.push({
+        value: toValue(rawVal),
+        tokenBased,
+        // A candidate counts as self-referential when the setup phrase occurs
+        // before it ("whereas we use a batch size 128" → 128, not the prior work).
+        self: markerIdx >= 0 && markerIdx <= (bm.index ?? 0),
         sentence,
         page,
       });
@@ -228,12 +324,12 @@ export function extractClaimsHeuristic(
     const steps = sentence.match(
       /(?:for\s+)?([\d,]+)\s+(?:training\s+)?steps?\b/i
     );
-    if (steps && Number(steps[1].replace(/,/g, "")) > 100) {
+    if (steps && toValue(steps[1]) > 100) {
       push({
         path: "training.total_steps",
         category: "training",
         label: "Total training steps",
-        value: num(steps[1]),
+        value: toValue(steps[1]),
         unit: "steps",
         impact: "important",
         sentence,
@@ -241,51 +337,67 @@ export function extractClaimsHeuristic(
       });
     }
 
-    // Dropout
+    // Dropout — covers "dropout of 0.1", "dropout probability of 0.1",
+    // "dropout ratio set to 0.5", "Pdrop = 0.1", "probability values, 0.3".
+    // The value MUST contain a digit (a sentence-final period is not a value).
     const drop = sentence.match(
-      /dropout(?:\s+(?:of|rate|to))?\s*[=:]?\s*(?:P_?drop\s*=\s*)?([\d.]+)/i
+      /dropout(?:\s+(?:probability|ratio|rate))?\s*(?:values?\s*)?((?:\s+(?:of|is|was|are|set|to|at)\b|\s*[:=,]|\s*[–—-]\s*)*)\s*(?:P\s*_?\s*drop(?:out)?\s*[:=]\s*)?(\d[\d.]*|\.\d+)/i
     );
     if (drop) {
-      push({
-        path: "training.dropout",
-        category: "training",
-        label: "Dropout rate",
-        value: Number(drop[1]),
-        unit: null,
-        impact: "important",
-        sentence,
-        page,
-      });
+      const dv = Number(dedupNum(drop[2]));
+      if (Number.isFinite(dv) && dv >= 0 && dv < 1) {
+        push({
+          path: "training.dropout",
+          category: "training",
+          label: "Dropout rate",
+          value: dv,
+          unit: null,
+          impact: "important",
+          sentence,
+          page,
+        });
+      }
     }
 
-    // Label smoothing
-    const ls = sentence.match(/label\s+smoothing\s+(?:of|value|=|:)?\s*([\d.]+)/i);
+    // Label smoothing — tolerates a Greek symbol prefix: "of value ϵls = 0.1"
+    const ls = sentence.match(
+      /label\s+smoothing\s*((?:\s+(?:of|value)\b|\s*[:=])*)\s*(?:[ϵε]\s*_?\s*l_?s?\s*)?[:=]?\s*([\d.]+)/i
+    );
     if (ls) {
-      push({
-        path: "loss.label_smoothing",
-        category: "loss",
-        label: "Label smoothing",
-        value: Number(ls[1]),
-        unit: null,
-        impact: "important",
-        sentence,
-        page,
-      });
+      const lv = Number(dedupNum(ls[2]));
+      if (Number.isFinite(lv) && lv > 0 && lv < 1) {
+        push({
+          path: "loss.label_smoothing",
+          category: "loss",
+          label: "Label smoothing",
+          value: lv,
+          unit: null,
+          impact: "important",
+          sentence,
+          page,
+        });
+      }
     }
 
-    // Weight decay
-    const wd = sentence.match(/weight\s+decay\s+(?:of|=|:)?\s*([\d.e\-]+)/i);
+    // Weight decay — plain decimals, "1e-5" and paper-typical scientific notation
+    // (single-digit exponent for the same anti-duplication reason as in LR).
+    const wd = sentence.match(
+      /weight\s+decay\s*(?:(?:of|is|was|are|set|to|at|and)\b|[:=]|[–—-]|\s)*\s*((?:[\d.]+\s*[⋅·x×]\s*)?10\s*[−^]\s*\{?\d\}?|[\d.]+[eE]-?\d+|[\d.]+)/i
+    );
     if (wd) {
-      push({
-        path: "training.weight_decay",
-        category: "training",
-        label: "Weight decay",
-        value: Number(wd[1]),
-        unit: null,
-        impact: "important",
-        sentence,
-        page,
-      });
+      const wv = parseSciLoose(wd[1]) ?? toValue(wd[1]);
+      if (Number.isFinite(wv) && wv > 0 && wv < 10) {
+        push({
+          path: "training.weight_decay",
+          category: "training",
+          label: "Weight decay",
+          value: wv,
+          unit: null,
+          impact: "important",
+          sentence,
+          page,
+        });
+      }
     }
 
     // Seeds
@@ -305,23 +417,27 @@ export function extractClaimsHeuristic(
       });
     }
 
-    // Layers / heads / dims
-    const layers = sentence.match(
-      /(?:stacked|use|uses|using|of|with|comprises?)?\s*(\d+)\s+(?:identical\s+)?(?:stacked\s+)?layers?\b/i
-    );
-    if (layers && Number(layers[1]) >= 2 && Number(layers[1]) <= 200) {
+    // Layers / heads / dims — prose ("6 identical layers", "8 attention heads"),
+    // config-notation ("L=12, H=768, A=12"), and formula forms ("dmodel=512").
+    const layers =
+      sentence.match(
+        /(?:stacked|use|uses|using|of|with|comprises?)?\s*(\d+)\s+(?:identical\s+)?(?:stacked\s+)?layers?\b/i
+      ) ?? sentence.match(/\bL\s*=\s*(\d{1,3})\b(?=[^.]*(?:Parameters|layers|encoder|stack))/i);
+    if (layers && Number(collapseDup2(layers[1])) >= 2 && Number(collapseDup2(layers[1])) <= 200) {
       push({
         path: "architecture.num_layers",
         category: "architecture",
         label: "Number of layers",
-        value: Number(layers[1]),
+        value: Number(collapseDup2(layers[1])),
         unit: "layers",
         impact: "critical",
         sentence,
         page,
       });
     }
-    const heads = sentence.match(/(\d+)\s+(?:parallel\s+)?(?:attention\s+)?heads?\b/i);
+    const heads =
+      sentence.match(/(\d+)\s+(?:parallel\s+)?(?:attention\s+)?heads?\b/i) ??
+      sentence.match(/\bA\s*=\s*(\d{1,2})\b(?=[^.]*(?:Parameters|heads))/i);
     if (heads && Number(heads[1]) >= 1 && Number(heads[1]) <= 128) {
       push({
         path: "architecture.num_heads",
@@ -335,21 +451,21 @@ export function extractClaimsHeuristic(
       });
     }
     const dmodel = sentence.match(
-      /d_?model\s*=\s*(\d+)|hidden\s+(?:size|dimension)\s+(?:of|=)?\s*(\d+)/i
+      /d\s*_?\s*model\s*[:=]\s*(\d+)|hidden\s+(?:size|dimension)\s+(?:of|=)?\s*(\d+)|\bH\s*=\s*(\d{3,4})\b(?=[^.]*(?:Parameters|hidden|dimension))|\bD\s*=\s*(\d{3,4})(?=[^0-9]|$)(?=[^.]*(?:layers|DMLP|MLP|patch|hidden))/i
     );
     if (dmodel) {
       push({
         path: "architecture.d_model",
         category: "architecture",
         label: "Model dimension (d_model)",
-        value: Number(dmodel[1] ?? dmodel[2]),
+        value: Number(dmodel[1] ?? dmodel[2] ?? dmodel[3] ?? dmodel[4]),
         unit: null,
         impact: "critical",
         sentence,
         page,
       });
     }
-    const dff = sentence.match(/d_?ff\s*=\s*(\d+)/i);
+    const dff = sentence.match(/d\s*_?\s*ff\s*[:=]\s*(\d+)/i) ?? sentence.match(/\bD\s*_?\s*MLP\s*[:=]\s*(\d+)/i);
     if (dff) {
       push({
         path: "architecture.d_ff",
@@ -440,8 +556,8 @@ export function extractClaimsHeuristic(
             path: "dataset.size",
             category: "dataset",
             label: "Dataset size",
-            value: `${pairCount[1]}M sentence pairs`,
-            unit: null,
+            value: Math.round(Number(pairCount[1]) * 1_000_000),
+            unit: "sentence pairs",
             impact: "important",
             sentence,
             page,
@@ -451,19 +567,28 @@ export function extractClaimsHeuristic(
       }
     }
 
-    // Beam search / eval protocol
-    const beam = sentence.match(/beam\s+search\s+(?:with|of)?\s*(?:size|width)?\s*[=:]?\s*(\d+)/i);
+    // Beam search / eval protocol — also "a beam size of 4" without "search";
+    // ar5iv duplicates single digits ("of 44"), collapse when the doubled form
+    // is an exact repeat of one digit.
+    const beam = sentence.match(
+      /beam\s+(?:search\s+)?(?:with\s+(?:a\s+)?)?(?:beam\s+)?(?:size|width)?\s*(?:of)?\s*[=:]?\s*(\d+)/i
+    );
     if (beam) {
-      push({
-        path: "evaluation.beam_size",
-        category: "evaluation",
-        label: "Beam size",
-        value: Number(beam[1]),
-        unit: null,
-        impact: "important",
-        sentence,
-        page,
-      });
+      const raw = beam[1];
+      const collapsed = raw.length === 2 && raw[0] === raw[1] ? raw[0] : dedupNum(raw);
+      const bv = Number(collapsed);
+      if (Number.isFinite(bv) && bv >= 1 && bv <= 128) {
+        push({
+          path: "evaluation.beam_size",
+          category: "evaluation",
+          label: "Beam size",
+          value: bv,
+          unit: null,
+          impact: "important",
+          sentence,
+          page,
+        });
+      }
     }
     const lenp = sentence.match(/length\s+(?:penalty|alpha)\s+[^.\d]*([\d.]+)/i);
     if (lenp) {
@@ -528,6 +653,50 @@ export function extractClaimsHeuristic(
         sentence,
         page,
       });
+    }
+  }
+
+  // ---- Batch size: document-level selection (pass 2) ---------------------
+  // Prefer self-referential setup sentences over mentions in comparisons with
+  // prior work ("He et al. use batch size 64, whereas we use 128").
+  const bestBatch =
+    batchCandidates.find((c) => c.self && Number.isFinite(c.value) && c.value > 0) ??
+    batchCandidates.find((c) => Number.isFinite(c.value) && c.value > 0);
+  if (bestBatch) {
+    push({
+      path: "training.batch_size",
+      category: "training",
+      label: bestBatch.tokenBased ? "Batch size (tokens)" : "Batch size",
+      value: bestBatch.value,
+      unit: bestBatch.tokenBased ? "tokens" : "examples",
+      impact: "critical",
+      sentence: bestBatch.sentence,
+      page: bestBatch.page,
+    });
+  }
+
+  // ---- Momentum: document-level scan (SGD setups state it in its own sentence)
+  if (!useAdam) {
+    for (const p of sents) {
+      const mom = p.s.match(
+        /momentum\s*(?:\[\d+\])?\s*(?:(?:of|to|is)\s+|[=:]?\s*|[–—-]\s*(?:to\s+)?)((?:\d+\.\d+)|\d+)/i
+      );
+      if (mom) {
+        const mv = Number(dedupNum(mom[1]));
+        if (Number.isFinite(mv) && mv > 0 && mv < 1) {
+          push({
+            path: "optimizer.momentum",
+            category: "optimizer",
+            label: "Momentum",
+            value: mv,
+            unit: null,
+            impact: "important",
+            sentence: p.s,
+            page: p.page,
+          });
+          break;
+        }
+      }
     }
   }
 

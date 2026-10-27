@@ -21,8 +21,23 @@ jobs:
       - name: Lint
         run: bun run lint
 
-      - name: Core logic suite (75 assertions)
+      - name: Core logic suite (102 assertions)
         run: bun run scripts/verify-core.ts
+
+      - name: Benchmark corpus integrity (annotations vs fetched texts)
+        run: python3 benchmark/validate_corpus.py
+
+      - name: Extraction benchmark (precision / recall / evidence-rate)
+        run: bun run scripts/benchmark-extraction.ts
+
+      - name: Scaffold validation (219 checks, 3 variants)
+        run: bun run scripts/validate-scaffolds.ts
+
+      - name: CLI smoke test (build + all commands)
+        run: |
+          bunx esbuild scripts/cli/paper2bench.ts --bundle --platform=node --format=esm --outfile=cli/paper2bench.mjs --banner:js='#!/usr/bin/env node'
+          node cli/paper2bench.mjs --version
+          node cli/paper2bench.mjs --help | head -4
 
       - name: Build
         run: bun run build

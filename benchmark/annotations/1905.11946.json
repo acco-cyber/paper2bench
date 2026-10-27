@@ -1,0 +1,8 @@
+{
+  "paper_id": "1905.11946",
+  "title": "EfficientNet: Rethinking Model Scaling",
+  "references": [
+    { "field_path": "training.learning_rate", "value": 0.256, "must_contain": ["initial learning rate 0.256"], "hint": "§4.2/Tab.4 (optimizer is RMSProp — outside current optimizer taxonomy)" },
+    { "field_path": "training.weight_decay", "value": 1e-5, "must_contain": ["weight decay 1e-5"], "hint": "§4.2" }
+  ]
+}

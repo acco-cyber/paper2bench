@@ -1,0 +1,11 @@
+{
+  "paper_id": "1608.06993",
+  "title": "Densely Connected Convolutional Networks",
+  "references": [
+    { "field_path": "optimizer.name", "value": "SGD", "must_contain": ["SGD effectively", "optimized with SGD"], "hint": "§3.3 intro context" },
+    { "field_path": "optimizer.momentum", "value": 0.9, "must_contain": ["Nesterov momentum [34] of 0.9"], "hint": "§3.3" },
+    { "field_path": "training.weight_decay", "value": 0.0001, "must_contain": ["decay of 10−410^{-4}"], "hint": "§3.3 (scientific notation)" },
+    { "field_path": "training.learning_rate", "value": 0.1, "must_contain": ["learning rate is set to 0.1"], "hint": "§3.3" },
+    { "field_path": "training.batch_size", "value_variants": [64, 256], "must_contain": ["mini-batch size of 256"], "hint": "§3.3 (CIFAR=64, ImageNet=256)" }
+  ]
+}

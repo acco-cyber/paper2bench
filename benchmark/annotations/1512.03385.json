@@ -1,0 +1,11 @@
+{
+  "paper_id": "1512.03385",
+  "title": "Deep Residual Learning for Image Recognition",
+  "references": [
+    { "field_path": "optimizer.name", "value": "SGD", "must_contain": ["SGD with a mini-batch size of 256"], "hint": "§3.4" },
+    { "field_path": "optimizer.momentum", "value": 0.9, "must_contain": ["momentum of 0.9"], "hint": "§3.4" },
+    { "field_path": "training.weight_decay", "value": 0.0001, "must_contain": ["weight decay of 0.0001"], "hint": "§3.4" },
+    { "field_path": "training.learning_rate", "value": 0.1, "must_contain": ["learning rate starts from 0.1"], "hint": "§3.4" },
+    { "field_path": "training.batch_size", "value": 256, "must_contain": ["mini-batch size of 256"], "hint": "§3.4" }
+  ]
+}

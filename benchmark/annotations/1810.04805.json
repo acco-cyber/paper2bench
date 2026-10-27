@@ -1,0 +1,14 @@
+{
+  "paper_id": "1810.04805",
+  "title": "BERT: Pre-training of Deep Bidirectional Transformers",
+  "references": [
+    { "field_path": "optimizer.name", "value": "Adam", "must_contain": ["We use Adam with learning rate of 1e-4"], "hint": "App. A.1" },
+    { "field_path": "training.learning_rate", "value_variants": [0.0001, 5e-05, 3e-05, 2e-05], "must_contain": ["learning rate of 1e-4"], "hint": "App. A.1 pretraining=1e-4; fine-tune grid 2e-5..5e-5" },
+    { "field_path": "training.warmup_steps", "value": 10000, "must_contain": ["first 10,000 steps"], "hint": "App. A.1" },
+    { "field_path": "training.batch_size", "value_variants": [256, 32], "must_contain": ["batch size of 256 sequences"], "hint": "§3.3 pretraining=256; fine-tuning=16/32/64" },
+    { "field_path": "training.dropout", "value": 0.1, "must_contain": ["dropout probability of 0.1"], "hint": "§3.2" },
+    { "field_path": "architecture.num_layers", "value_variants": [12, 24], "must_contain": ["L=12"], "hint": "Table 1 (BASE=12, LARGE=24)" },
+    { "field_path": "architecture.d_model", "value_variants": [768, 1024], "must_contain": ["H=768"], "hint": "Table 1" },
+    { "field_path": "architecture.num_heads", "value_variants": [12, 16], "must_contain": ["A=12"], "hint": "Table 1" }
+  ]
+}

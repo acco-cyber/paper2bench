@@ -2,6 +2,12 @@
 
 **Turn an ML paper into an evidence-backed, inspectable experiment.**
 
+[![Live demo](https://img.shields.io/badge/live_demo-koushikz1--paper2bench-8a5a2a)](https://huggingface.co/spaces/koushikz1/paper2bench)
+[![CI](https://github.com/acco-cyber/paper2bench/actions/workflows/ci.yml/badge.svg)](https://github.com/acco-cyber/paper2bench/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/license-MIT-2b1d12.svg)](LICENSE)
+
+**▶ Try it now — no signup, no API key: [huggingface.co/spaces/koushikz1/paper2bench](https://huggingface.co/spaces/koushikz1/paper2bench)** — click *Load guided example*, resolve the evidence conflict, generate the scaffold, export the ZIP. Everything runs in your browser.
+
 Paper2Bench is an evidence-first research engineering workspace. Give it an arXiv link, a DOI, or a paper PDF — it extracts a structured record of the paper's method, data, training setup, loss, metrics and reported results; links every claim to its source; keeps what is *known, inferred, missing or conflicting* visibly separate; generates a deterministic project scaffold; and records what you actually ran — apart from what the paper claims.
 
 > **The one-sentence promise:** from paper to an inspectable reproduction plan and experiment repository, without hiding what is known, inferred, missing, or actually reproduced.
@@ -16,6 +22,15 @@ Paper2Bench is an evidence-first research engineering workspace. Give it an arXi
 - Researchers rebuild the same project structure, checklists and comparison tables by hand, every time.
 
 Paper2Bench answers these with a **claim ledger** (one atomic fact per claim, each with a source span), **honest status semantics**, a **deterministic scaffold generator**, and a **run-provenance-aware comparison** that never awards "reproduced" automatically.
+
+## What's new in v2.1 — measured reliability
+
+| Addition | What it gives you |
+|---|---|
+| **Extraction benchmark** | 12 real arXiv papers, 67 text-verified reference claims, precision/recall/evidence-rate computed by script and re-run in CI. Honest in-sample caveat documented; held-out protocol defined for contributors. See [benchmark/README.md](benchmark/README.md). |
+| **Scaffold validation outside the UI** | 219 checks on generated artifacts: YAML/JSON parse, Python AST validity, provenance markers, TODO traceability, config↔claim consistency, secret scan. Execution is honestly reported as blocked-by-design, never as passed. |
+| **Real CLI** | `paper2bench inspect / validate / compare / create` — the documented CLI now exists (`cli/paper2bench.mjs`, reuses the app's core modules). |
+| **Extractor hardening** | The benchmark exposed and fixed 14+ real-world failure modes on arXiv HTML: LaTeX duplication (`0.90.9`→`0.9`), zero-width characters, scientific notation (`10−4`→1e-4), optimizer misattribution, NaN captures, multi-config batch-size selection. |
 
 ## What's new in v2.0
 
@@ -132,19 +147,49 @@ paper2bench-project/
   README.md
 ```
 
-## CLI contract (reference)
+## CLI (real, ships in this repo)
 
-```
-paper2bench create <paper-url-or-file> --output ./experiment
-paper2bench inspect ./experiment
-paper2bench validate ./experiment
-paper2bench plan ./experiment --scope main-results
-paper2bench estimate ./experiment --hardware auto
-paper2bench compare ./experiment --runs ./runs.jsonl
-paper2bench export ./experiment --format zip
+```bash
+npm run cli -- inspect   ./project.json
+npm run cli -- validate  ./project.json
+npm run cli -- compare   ./project.json --runs ./runs.jsonl
+npm run cli -- create    ./project.json --out ./experiment --framework pytorch|huggingface
 ```
 
-The web app is the reference implementation; the CLI wraps the same core contracts (schema, statuses, semantics). Every command must be idempotent, provide `--json` output, and never destroy user files silently.
+The CLI reuses the same pure modules as the web app (validation, comparison,
+scaffold, insights) — no logic duplication. It accepts any app export (bare
+project JSON or the `{export_version, project}` wrapper). With the repo as an
+npm package root, `npm link` also exposes the `paper2bench` binary.
+
+```
+paper2bench inspect   <project.json>     # claims, conflicts, readiness breakdown
+paper2bench validate  <project.json>     # honest checks: PASS / FAIL / BLKD (blocked ≠ failed)
+paper2bench compare   <project.json> --runs <runs.jsonl|csv>   # reported vs measured table
+paper2bench create    <project.json> --out <dir>               # deterministic scaffold
+```
+
+Planned (not implemented — see the roadmap in CONTRIBUTING.md): `plan`,
+`estimate`, `export`, `--json` output on every command.
+
+## Measured reliability
+
+Paper2Bench reports numbers computed by scripts, not claims. All three gates run in CI on every push:
+
+| Gate | Scope | Current result |
+|---|---|---|
+| **Core logic suite** | 102 assertions: ingestion policy, extraction patterns, importers, scaffold determinism, validation honesty, comparison rules, readiness scoring, backup integrity | 102/102 pass |
+| **Extraction benchmark** | 12 real arXiv papers, 67 text-verified references — precision / recall / evidence-rate ([methodology](benchmark/README.md)) | P 100% · R 100% · evidence 86.6% — **in-sample**; pre-tuning baseline on the same corpus was P 53.3% / R 34.8% |
+| **Scaffold validation** | 219 checks on generated artifacts, 3 variants — parse, provenance, consistency, secrets ([methodology](benchmark/README.md)) | 219/219 pass |
+
+> **How to read the 100%:** these 12 papers drove the extractor's development,
+> so the number is a regression benchmark, not a generalization estimate.
+> The pre-tuning measurement and every fix are in the git history; the held-out
+> protocol for unseen papers is defined in [benchmark/README.md](benchmark/README.md)
+> and needs contributor annotations. Generated code is never executed by
+> Paper2Bench — that limit is documented, not hidden.
+
+Raw data: [benchmark/results.json](benchmark/results.json),
+[benchmark/scaffold-validation.json](benchmark/scaffold-validation.json).
 
 ## Supported scope (v0.1)
 
@@ -166,13 +211,20 @@ See [SECURITY.md](SECURITY.md) to report vulnerabilities.
 ## Testing
 
 ```bash
-bun run scripts/verify-core.ts    # 102-assertion core-logic suite:
-                                  # ingestion policy, extraction patterns, run importers,
-                                  # scaffold determinism, validation honesty, comparison rules,
-                                  # compute estimator, secret scan, conflict provenance,
-                                  # readiness scoring, workspace organization, backup integrity
-bun run lint                      # ESLint (Next.js + TypeScript)
+bun run test:core             # 102-assertion core-logic suite:
+                              # ingestion policy, extraction patterns, run importers,
+                              # scaffold determinism, validation honesty, comparison rules,
+                              # compute estimator, secret scan, conflict provenance,
+                              # readiness scoring, workspace organization, backup integrity
+bun run bench:fetch           # fetch benchmark corpus (12 arXiv papers)
+bun run bench:validate-corpus # verify all 67 annotations against the texts
+bun run bench:extraction      # extraction precision/recall/evidence-rate
+bun run bench:scaffolds       # 219-check scaffold validation (3 variants)
+bun run cli -- --help         # CLI smoke test
+bun run lint                  # ESLint (Next.js + TypeScript)
 ```
+
+CI runs the suite, both benchmarks, the CLI smoke test, a lint pass, a production build and a repo-wide secret scan on every push. Methodology and honest caveats: [benchmark/README.md](benchmark/README.md).
 
 ## Contributing
 

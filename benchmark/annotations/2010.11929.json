@@ -1,0 +1,13 @@
+{
+  "paper_id": "2010.11929",
+  "title": "An Image is Worth 16x16 Words (ViT)",
+  "references": [
+    { "field_path": "optimizer.name", "value": "Adam", "must_contain": ["using Adam"], "hint": "§4.1" },
+    { "field_path": "training.batch_size", "value": 4096, "must_contain": ["batch size of 4096"], "hint": "§4.1" },
+    { "field_path": "training.weight_decay", "value": 0.1, "must_contain": ["weight decay of 0.10.1"], "hint": "§4.1 (raw ar5iv duplicates '0.1')" },
+    { "field_path": "architecture.num_layers", "value_variants": [12, 24, 32, 8], "must_contain": ["ViT-Base 12 768", "ViT model with 88 layers"], "hint": "Table 2 + appendix intersection model (raw ar5iv states '88' = duplicated '8 8')" },
+    { "field_path": "architecture.d_model", "value_variants": [768, 1024, 1280], "must_contain": ["ViT-Base 12 768", "D=1024"], "hint": "Table 2 + appendix D=1024" },
+    { "field_path": "architecture.d_ff", "value_variants": [3072, 4096, 5120, 2048], "must_contain": ["12 768 3072", "DMLP=2048"], "hint": "Table 2 + appendix DMLP=2048" },
+    { "field_path": "architecture.num_heads", "value_variants": [12, 16], "must_contain": ["307M  ViT-Huge"], "hint": "Table 2" }
+  ]
+}

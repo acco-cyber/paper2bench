@@ -1,0 +1,10 @@
+{
+  "paper_id": "1409.1556",
+  "title": "Very Deep Convolutional Networks (VGG)",
+  "references": [
+    { "field_path": "training.batch_size", "value": 256, "must_contain": ["batch size was set to 256256"], "hint": "§3.1 (raw ar5iv duplicates '256')" },
+    { "field_path": "optimizer.momentum", "value": 0.9, "must_contain": ["momentum – to 0.90.9", "momentum – to 0.90.9.", "to 0.90.9"], "hint": "§3.1 (duplicated; dash phrasing defeats the momentum regex)" },
+    { "field_path": "training.dropout", "value": 0.5, "must_contain": ["dropout ratio set to 0.50.5"], "hint": "§3.1 (duplicated)" },
+    { "field_path": "training.learning_rate", "value": 0.01, "must_contain": ["initially set to 10−210^{-2}"], "hint": "§3.2 (scientific notation '10−2')" }
+  ]
+}

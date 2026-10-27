@@ -1,0 +1,11 @@
+{
+  "paper_id": "1412.6980",
+  "title": "Adam: A Method for Stochastic Optimization",
+  "references": [
+    { "field_path": "training.learning_rate", "value": 0.001, "must_contain": ["α=0.001"], "hint": "§6 defaults; paper says stepsize α, never the phrase 'learning rate'" },
+    { "field_path": "optimizer.name", "value": "Adam", "must_contain": ["proposed algorithm Adam", "we propose Adam", "termed Adam", "Adam algorithm"], "hint": "abstract/§2" },
+    { "field_path": "optimizer.beta1", "value": 0.9, "must_contain": ["β1=0.9"], "hint": "§6" },
+    { "field_path": "optimizer.beta2", "value": 0.999, "must_contain": ["β2=0.999"], "hint": "§6" },
+    { "field_path": "optimizer.epsilon", "value": 1e-8, "must_contain": ["10−8"], "hint": "§6" }
+  ]
+}
